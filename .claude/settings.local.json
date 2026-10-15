@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(pip install *)",
+      "Bash(python cli.py init *)",
+      "Bash(python cli.py init-from-url *)",
+      "Bash(python cli.py status *)",
+      "Bash(python cli.py generate *)",
+      "Bash(python cli.py push *)",
+      "Bash(python cli.py pull *)",
+      "Bash(python cli.py expand *)",
+      "Bash(python cli.py write *)",
+      "Bash(python cli.py read *)",
+      "Bash(python cli.py --help)",
+      "Bash(python3 -c *)",
+      "Bash(python -c *)",
+      "Bash(mkdir -p /Users/wuchaofan/PycharmProjects/vomin_studio/.claude/commands)"
+    ]
+  }
+}

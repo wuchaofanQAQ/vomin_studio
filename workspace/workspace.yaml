@@ -1,0 +1,27 @@
+ark:
+  default_duration: 5
+  default_ratio: '9:16'
+  default_resolution: 720p
+  image_model: doubao-seedream-5-0-flash-260915
+  video_model: doubao-seedance-2-5-260628
+  video_model_fast: doubao-seedance-2-0-fast-260128
+budget:
+  spent: 0
+  total_limit: 5000
+drama_name: 球球救我
+feishu:
+  app_token: MHSobhTsxarh3psksepc5B3LnEg
+  tables:
+    剧本分镜表: tbl72zA8sYHCTp5P
+    剧本设定: tblgb95GqUKQcdvm
+    剧集表: tblk0ilSoRS72m7v
+    场景库: tbll0IKSNfdo47lz
+    生图工作台: tblRx1V5DCAqfN7y
+    素材库: tblEA21rZArP6Zax
+    角色库: tblcxrnbn4E8d8GT
+    角色档案: tblQsVUMKlsBVoeh
+  url: https://my.feishu.cn/base/MHSobhTsxarh3psksepc5B3LnEg
+tts:
+  format: mp3
+  model: seed-audio-1.0
+  sample_rate: 48000
