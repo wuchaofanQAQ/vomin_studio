@@ -2,19 +2,126 @@
 """Vomin Studio CLI — AI 短剧制作流水线"""
 import argparse
 import os
+import re
 import sys
+from datetime import datetime
 
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+# 所有剧本 workspace 的默认根目录：项目根/workspace，一个剧本一个文件夹
+DEFAULT_WORKSPACE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workspace")
+
+
+def sanitize_dirname(name: str) -> str:
+    """把剧名清洗成合法的 Windows 文件夹名。"""
+    cleaned = re.sub(r'[\\/:*?"<>|]', "_", (name or "").strip()).rstrip(". ")
+    return cleaned or "未命名剧本"
+
+
+def resolve_init_path(workspace: str | None, drama_name: str) -> str:
+    """workspace 未显式指定时，默认落到 <项目根>/workspace/{剧名}。"""
+    if workspace:
+        return os.path.abspath(workspace)
+    path = os.path.join(DEFAULT_WORKSPACE_ROOT, sanitize_dirname(drama_name))
+    print(f"未指定路径，使用默认项目目录: {path}")
+    return os.path.abspath(path)
+
+
+def write_system_config(feishu, tables: dict, ws_root: str, drama_name: str):
+    """初始化后把项目级引导配置写入飞书「系统设置」表。"""
+    table_id = (tables or {}).get("系统设置", "")
+    items = [
+        ("项目路径", os.path.abspath(ws_root),
+         "当前剧本项目 workspace 的本地绝对路径；切换目录或电脑后运行 set-path 更新"),
+        ("剧名", drama_name, "剧本名称；workspace 根目录下一个剧本一个文件夹"),
+        ("创建时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "项目初始化时间"),
+    ]
+    for key, value, desc in items:
+        feishu.upsert_config_value(key, value, description=desc, table_id=table_id)
+    print("  系统设置已写入: 项目路径 / 剧名 / 创建时间")
+
+
+def resolve_workspace(target: str):
+    """把命令行传入的目标解析为 Workspace。
+
+    target 支持两种形式：
+      1. 本地 workspace 目录路径（原有行为）；
+      2. 飞书多维表格 URL（含 /base/ 或 /wiki/）：先连飞书读取「系统设置」
+         表中的「项目路径」，再用该路径定位本地 workspace。
+
+    这样本地目录可以随时迁移，只需在飞书系统设置里更新一次路径。
+    """
+    from vomin.workspace import Workspace
+    from vomin.feishu.bitable import FeishuBitable
+
+    if not (target.startswith("http://") or target.startswith("https://")):
+        return Workspace(target)
+
+    try:
+        app_token = FeishuBitable.parse_app_token(target)
+    except ValueError as e:
+        print(e)
+        sys.exit(1)
+
+    feishu = FeishuBitable(app_token=app_token)
+    try:
+        root = feishu.get_config_value("项目路径")
+    except Exception as e:
+        print(f"读取飞书「系统设置」失败: {e}")
+        sys.exit(1)
+
+    if not root:
+        print("飞书「系统设置」中未配置「项目路径」。")
+        print("请先用本地路径执行一次注册: python cli.py set-path <workspace目录>")
+        sys.exit(1)
+
+    root = os.path.abspath(root)
+    if not os.path.exists(os.path.join(root, "workspace.yaml")):
+        print(f"飞书配置的「项目路径」无效，该目录下找不到 workspace.yaml:\n  {root}")
+        print("若本地目录已迁移，请在新目录执行: python cli.py set-path <workspace目录>")
+        sys.exit(1)
+
+    print(f"已从飞书定位到本地项目: {root}")
+    return Workspace(root)
+
+
+def cmd_set_path(args):
+    """把当前本地 workspace 的绝对路径写回飞书「系统设置」（换目录后执行一次）。"""
+    from vomin.workspace import Workspace
+
+    ws_path = os.path.abspath(args.workspace)
+    if not os.path.exists(os.path.join(ws_path, "workspace.yaml")):
+        print(f"该目录不是有效的 workspace（缺少 workspace.yaml）: {ws_path}")
+        sys.exit(1)
+
+    ws = Workspace(ws_path)
+    if not ws.feishu:
+        print("未配置飞书（缺少 app_token 或 FEISHU_APP_ID/SECRET 凭据），无法更新")
+        sys.exit(1)
+
+    table_id = ws.config.get("feishu", {}).get("tables", {}).get("系统设置", "")
+    try:
+        ws.feishu.upsert_config_value(
+            "项目路径",
+            ws.root,
+            description="当前剧本项目 workspace 的本地绝对路径；切换本地目录或电脑后，运行 set-path 更新",
+            table_id=table_id,
+        )
+    except Exception as e:
+        print(f"写入飞书失败: {e}")
+        sys.exit(1)
+    print(f"已将项目路径写入飞书「系统设置」: {ws.root}")
 
 
 def cmd_init(args):
     from vomin.workspace import Workspace
     from vomin.feishu.bitable import FeishuBitable
 
-    if os.path.exists(os.path.join(os.path.abspath(args.workspace), "workspace.yaml")):
-        print(f"workspace 已存在: {args.workspace}")
+    ws_path = resolve_init_path(args.workspace, args.name)
+    if os.path.exists(os.path.join(ws_path, "workspace.yaml")):
+        print(f"workspace 已存在: {ws_path}")
         print("如需重新初始化，请先删除该目录或使用新路径")
         sys.exit(1)
 
@@ -30,30 +137,34 @@ def cmd_init(args):
     # 2. 创建本地 workspace
     print("[本地]")
     ws = Workspace.init_workspace(
-        args.workspace,
+        ws_path,
         drama_name=args.name,
         feishu_app_token=project["app_token"],
         feishu_tables=project["tables"],
         feishu_url=project["url"],
     )
     print(f"  workspace 已创建: {ws.root}")
+
+    # 3. 写入飞书「系统设置」表
+    try:
+        write_system_config(feishu, project["tables"], ws.root, args.name)
+    except Exception as e:
+        print(f"  警告: 写入系统设置失败（不影响本地初始化）: {e}")
     print()
     print(f"飞书表格: {project['url']}")
     print(f"本地目录: {ws.root}")
     print()
-    print("下一步:")
-    print(f"  1. 在飞书「角色库」填入角色（角色名、外貌描述、生成提示词、生成模型）")
-    print(f"  2. 在飞书「场景库」填入场景")
-    print(f"  3. python cli.py pull {args.workspace}")
-    print(f"  4. python cli.py gen-character {args.workspace}")
-    print(f"  5. 在飞书「剧本分镜表」填入分镜")
-    print(f"  6. python cli.py pull {args.workspace}")
-    print(f"  7. python cli.py generate {args.workspace} --tts-only")
+    print("下一步（drama-initializer 产出确认后）:")
+    print(f"  1. python cli.py write {ws.root} --table 剧本设定 --data @settings.json")
+    print(f"  2. python cli.py write {ws.root} --table 剧集表 --data @episodes.json")
+    print(f"  3. python cli.py write {ws.root} --table 角色库 --data @characters.json")
+    print(f"  4. python cli.py write {ws.root} --table 角色档案 --data @bibles.json")
+    print(f"  5. python cli.py push {ws.root}")
 
 
 def cmd_status(args):
     from vomin.workspace import Workspace
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     cfg = ws.config
     shots = ws.load_storyboard()
 
@@ -116,7 +227,7 @@ def _generate_character(ws, char, chars_list):
     image = ImageClient(ark)
     model = char.get("gen_model") or ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
 
-    final_prompt, _, _, _ = ws.expand_prompt(prompt_template, skip_self=("角色库", char["name"]))
+    final_prompt, _, _, _, _ = ws.expand_prompt(prompt_template, skip_self=("角色库", char["name"]))
 
     print(f"  模型: {model}")
     print(f"  提示词: {final_prompt[:80]}...")
@@ -159,7 +270,7 @@ def _generate_scene(ws, scene, scenes_list):
     image = ImageClient(ark)
     model = scene.get("gen_model") or ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
 
-    final_prompt, _, _, _ = ws.expand_prompt(prompt_template, skip_self=("场景库", scene["name"]))
+    final_prompt, _, _, _, _ = ws.expand_prompt(prompt_template, skip_self=("场景库", scene["name"]))
 
     print(f"  模型: {model}")
     print(f"  提示词: {final_prompt[:80]}...")
@@ -203,7 +314,7 @@ def _generate_workbench_task(ws, task, tasks_list):
     model = task.get("model") or ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
     size = task.get("size") or "2K"
 
-    final_prompt, ref_images_abs, _, _ = ws.expand_prompt(prompt_template)
+    final_prompt, ref_images_abs, _, _, _ = ws.expand_prompt(prompt_template)
 
     ref_images = ref_images_abs if ref_images_abs else None
     if ref_images:
@@ -268,7 +379,7 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
 
     # --- TTS 配音 ---
     if shot.get("dialogue"):
-        _, _, prompt_chars, _ = ws.expand_prompt(shot.get("prompt", ""))
+        _, _, prompt_chars, _, _ = ws.expand_prompt(shot.get("prompt", ""))
         char_name = prompt_chars[0] if prompt_chars else "旁白"
         char = char_map.get(char_name, {})
         voice_desc = char.get("voice_desc", "青年，普通话标准")
@@ -305,13 +416,14 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
             if bak:
                 print(f"  备份旧视频: {bak}")
 
-        final_prompt, ref_images, chars_found, scenes_found = ws.expand_prompt(shot["prompt"])
+        final_prompt, ref_images, chars_found, scenes_found, ref_videos = ws.expand_prompt(shot["prompt"])
 
         global_prompt_raw = ws.get_global_prompt()
         if global_prompt_raw:
-            global_expanded, global_refs, _, _ = ws.expand_prompt(global_prompt_raw)
+            global_expanded, global_refs, _, _, global_videos = ws.expand_prompt(global_prompt_raw)
             final_prompt = f"{final_prompt}，{global_expanded}"
             ref_images = list(ref_images) + [r for r in global_refs if r not in ref_images]
+            ref_videos = list(ref_videos) + [r for r in global_videos if r not in ref_videos]
 
         print(f"  提示词: {final_prompt[:80]}...")
         content = [{"type": "text", "text": final_prompt}]
@@ -324,14 +436,26 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
         for img_path in all_refs:
             with open(img_path, "rb") as imgf:
                 img_b64 = b64.b64encode(imgf.read()).decode()
-            ext = os.path.splitext(img_path)[1].lstrip(".") or "png"
-            mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}.get(ext, "image/png")
+            ext = os.path.splitext(img_path)[1].lstrip(".").lower() or "png"
+            mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif", "bmp": "image/bmp"}.get(ext, "image/png")
             content.append({
                 "type": "image_url",
                 "image_url": {"url": f"data:{mime};base64,{img_b64}"},
                 "role": "reference_image",
             })
             print(f"  参考图: {ws.rel(img_path)}")
+
+        for vid_path in ref_videos:
+            with open(vid_path, "rb") as vidf:
+                vid_b64 = b64.b64encode(vidf.read()).decode()
+            ext = os.path.splitext(vid_path)[1].lstrip(".").lower() or "mp4"
+            mime = {"mp4": "video/mp4", "mov": "video/quicktime", "webm": "video/webm"}.get(ext, "video/mp4")
+            content.append({
+                "type": "video_url",
+                "video_url": {"url": f"data:{mime};base64,{vid_b64}"},
+                "role": "reference_video",
+            })
+            print(f"  参考视频: {ws.rel(vid_path)}")
 
         audio_abs = ws.abs(shot["audio_path"]) if shot.get("audio_path") else None
         has_audio_ref = False
@@ -397,7 +521,7 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
 
 def cmd_generate(args):
     from vomin.workspace import Workspace
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
 
     if args.target:
         parts = args.target.split(":", 1)
@@ -461,7 +585,7 @@ def cmd_generate(args):
 
 def cmd_push(args):
     from vomin.workspace import Workspace
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     if not ws.feishu:
         print("未配置飞书，跳过")
         return
@@ -484,7 +608,7 @@ def cmd_push(args):
 
 def cmd_pull(args):
     from vomin.workspace import Workspace
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     if not ws.feishu:
         print("未配置飞书，跳过")
         return
@@ -520,9 +644,9 @@ def cmd_init_from_url(args):
     from vomin.workspace import Workspace
     from vomin.feishu.bitable import FeishuBitable
 
-    ws_path = os.path.abspath(args.workspace)
+    ws_path = resolve_init_path(args.workspace, args.name)
     if os.path.exists(os.path.join(ws_path, "workspace.yaml")):
-        print(f"workspace 已存在: {args.workspace}")
+        print(f"workspace 已存在: {ws_path}")
         sys.exit(1)
 
     app_token = FeishuBitable.parse_app_token(args.url)
@@ -543,6 +667,12 @@ def cmd_init_from_url(args):
         feishu_url=args.url,
     )
     print(f"workspace 已创建: {ws.root}")
+
+    # 绑定已有表格后，同样把项目路径等引导配置写回「系统设置」
+    try:
+        write_system_config(feishu, tables, ws.root, args.name)
+    except Exception as e:
+        print(f"  警告: 写入系统设置失败（不影响本地初始化）: {e}")
 
     ws.feishu = feishu
     ws.invalidate_cache()
@@ -565,7 +695,7 @@ def cmd_write(args):
     import json as _json
     from vomin.workspace import Workspace
 
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     table = args.table
 
     raw = args.data
@@ -634,7 +764,7 @@ def cmd_read(args):
     import json as _json
     from vomin.workspace import Workspace
 
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     table = args.table
 
     loaders = {
@@ -649,12 +779,33 @@ def cmd_read(args):
         sys.exit(1)
 
     data = loader()
+
+    # 按集数过滤（剧集表 / 剧本分镜表）：拆分镜时只读当前集 ± 相邻集，
+    # 禁止一次性读入全部剧集原文，避免上下文膨胀
+    if args.episode is not None and table in ("剧集表", "剧本分镜表"):
+        def _ep_num(rec):
+            try:
+                return int(rec.get("episode"))
+            except (TypeError, ValueError):
+                return None
+
+        context = max(int(args.context or 0), 0)
+        lo, hi = args.episode - context, args.episode + context
+        data = [r for r in data if (e := _ep_num(r)) is not None and lo <= e <= hi]
+        data.sort(key=lambda r: int(r["episode"]))
+        if context:
+            print(f"[过滤] 第 {lo}~{hi} 集（实际 {len(data)} 条）", file=sys.stderr)
+        else:
+            print(f"[过滤] 仅第 {args.episode} 集（实际 {len(data)} 条）", file=sys.stderr)
+    elif args.episode is not None:
+        print(f"--episode/--context 仅支持剧集表、剧本分镜表，已忽略", file=sys.stderr)
+
     print(_json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def cmd_expand(args):
     from vomin.workspace import Workspace
-    ws = Workspace(args.workspace)
+    ws = resolve_workspace(args.workspace)
     shots = ws.load_storyboard()
 
     global_prompt_raw = ws.get_global_prompt()
@@ -662,7 +813,7 @@ def cmd_expand(args):
     if global_prompt_raw or global_refs:
         print(f"[全局设定]")
         if global_prompt_raw:
-            global_expanded, _, _, _ = ws.expand_prompt(global_prompt_raw)
+            global_expanded, _, _, _, _ = ws.expand_prompt(global_prompt_raw)
             print(f"  全局提示词（原文）: {global_prompt_raw}")
             if global_expanded != global_prompt_raw:
                 print(f"  全局提示词（展开）: {global_expanded}")
@@ -676,11 +827,12 @@ def cmd_expand(args):
 
     for s in targets:
         template = s.get("prompt", "")
-        expanded, ref_imgs, chars, scenes = ws.expand_prompt(template)
+        expanded, ref_imgs, chars, scenes, ref_vids = ws.expand_prompt(template)
         if global_prompt_raw:
-            global_expanded, global_extra_refs, _, _ = ws.expand_prompt(global_prompt_raw)
+            global_expanded, global_extra_refs, _, _, global_extra_vids = ws.expand_prompt(global_prompt_raw)
             full_prompt = f"{expanded}，{global_expanded}"
             ref_imgs = list(ref_imgs) + [r for r in global_extra_refs if r not in ref_imgs]
+            ref_vids = list(ref_vids) + [r for r in global_extra_vids if r not in ref_vids]
         else:
             full_prompt = expanded
         all_refs = list(ref_imgs) + [g for g in global_refs if g not in ref_imgs]
@@ -690,6 +842,7 @@ def cmd_expand(args):
         print(f"  角色:     {', '.join(chars) if chars else '(无)'}")
         print(f"  场景:     {', '.join(scenes) if scenes else '(无)'}")
         print(f"  参考图:   {', '.join(ws.rel(p) for p in all_refs) if all_refs else '(无)'}")
+        print(f"  参考视频: {', '.join(ws.rel(p) for p in ref_vids) if ref_vids else '(无)'}")
         print()
 
 
@@ -698,13 +851,15 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_init = sub.add_parser("init", help="初始化 workspace（创建新飞书表格）")
-    p_init.add_argument("workspace", help="workspace 目录路径")
+    p_init.add_argument("workspace", nargs="?", default=None,
+                        help="workspace 目录路径；省略时默认为 项目根/workspace/{剧名}")
     p_init.add_argument("--name", default="demo短剧", help="剧名")
 
     p_init_url = sub.add_parser("init-from-url", help="从飞书链接初始化 workspace")
     p_init_url.add_argument("url", help="飞书多维表格 URL")
-    p_init_url.add_argument("workspace", help="workspace 目录路径")
-    p_init_url.add_argument("--name", default="新项目", help="剧名")
+    p_init_url.add_argument("workspace", nargs="?", default=None,
+                            help="workspace 目录路径；省略时默认为 项目根/workspace/{剧名}")
+    p_init_url.add_argument("--name", default="新项目", help="剧名（建议显式传入，用作默认目录名）")
 
     p_status = sub.add_parser("status", help="查看状态和预算")
     p_status.add_argument("workspace", help="workspace 目录路径")
@@ -729,15 +884,23 @@ def main():
     p_write.add_argument("--table", required=True, help="目标表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧集表/生图工作台/素材库）")
     p_write.add_argument("--data", required=True, help="JSON 数据字符串，或 @文件路径")
 
+    p_setpath = sub.add_parser("set-path", help="把当前本地 workspace 路径写回飞书系统设置")
+    p_setpath.add_argument("workspace", help="workspace 本地目录路径")
+
     p_read = sub.add_parser("read", help="读取指定表数据并输出 JSON")
     p_read.add_argument("workspace", help="workspace 目录路径")
     p_read.add_argument("--table", required=True, help="表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧集表/生图工作台/素材库）")
+    p_read.add_argument("--episode", type=int, default=None,
+                        help="仅剧集表/剧本分镜表：只读指定集（拆分镜时禁止无过滤读全量剧集）")
+    p_read.add_argument("--context", type=int, default=0,
+                        help="配合 --episode：连同前后各 N 集（拆分镜建议 --context 1）")
 
     args = parser.parse_args()
     {"init": cmd_init, "init-from-url": cmd_init_from_url,
      "status": cmd_status, "generate": cmd_generate,
      "push": cmd_push, "pull": cmd_pull, "expand": cmd_expand,
-     "write": cmd_write, "read": cmd_read}[args.command](args)
+     "write": cmd_write, "read": cmd_read,
+     "set-path": cmd_set_path}[args.command](args)
 
 
 if __name__ == "__main__":

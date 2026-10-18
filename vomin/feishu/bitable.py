@@ -53,7 +53,6 @@ class FeishuBitable:
                 {"field_name": "人物锁定", "type": 1},
                 {"field_name": "环境锁定", "type": 1},
                 {"field_name": "时间线", "type": 1},
-                {"field_name": "景别运镜", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待生成"}, {"name": "生成中"}, {"name": "待审核"},
                     {"name": "通过"}, {"name": "返工"}, {"name": "生成失败"},
@@ -172,6 +171,13 @@ class FeishuBitable:
                 {"field_name": "标注交接", "type": 1},
             ],
         },
+        "系统设置": {
+            "primary_rename": "配置项",
+            "fields": [
+                {"field_name": "配置值", "type": 1},
+                {"field_name": "说明", "type": 1},
+            ],
+        },
     }
 
     EXPECTED_TABLES = list(TABLE_SCHEMA.keys())
@@ -229,6 +235,62 @@ class FeishuBitable:
         if not m:
             raise ValueError(f"无法从 URL 中解析飞书 app_token: {feishu_url}")
         return m.group(1)
+
+    # ------ 系统设置表：用于存放项目路径等引导配置 ------
+    def _system_table_id(self, table_id: str = "") -> str:
+        """获取「系统设置」表 ID：优先用传入值，否则按表名在线发现。"""
+        if table_id:
+            return table_id
+        tables = self.discover_tables()
+        tid = tables.get("系统设置", "")
+        if not tid:
+            raise RuntimeError("飞书表格中未找到「系统设置」数据表")
+        return tid
+
+    def get_config_value(self, key: str, table_id: str = "") -> str:
+        """读取「系统设置」表中指定配置项的配置值；不存在返回空串。"""
+        tid = self._system_table_id(table_id)
+        for rec in self.list_records(tid):
+            fields = rec.get("fields", {})
+            if _text_val(fields.get("配置项")) == key:
+                return _text_val(fields.get("配置值"))
+        return ""
+
+    def get_all_config(self, table_id: str = "") -> list[dict]:
+        """读取「系统设置」表全部配置，返回 [{key, value, description, record_id}]。"""
+        tid = self._system_table_id(table_id)
+        result = []
+        for rec in self.list_records(tid):
+            fields = rec.get("fields", {})
+            key = _text_val(fields.get("配置项"))
+            if not key:
+                continue
+            result.append({
+                "key": key,
+                "value": _text_val(fields.get("配置值")),
+                "description": _text_val(fields.get("说明")),
+                "record_id": rec["record_id"],
+            })
+        return result
+
+    def upsert_config_value(self, key: str, value: str, description: str = "",
+                            table_id: str = "") -> str:
+        """在「系统设置」表写入或更新一个配置项（按配置项匹配），返回 record_id。"""
+        tid = self._system_table_id(table_id)
+        record_id = None
+        for rec in self.list_records(tid):
+            if _text_val(rec.get("fields", {}).get("配置项")) == key:
+                record_id = rec["record_id"]
+                break
+
+        fields = {"配置项": key, "配置值": value}
+        if description:
+            fields["说明"] = description
+
+        if record_id:
+            self.update_record(tid, record_id, fields)
+            return record_id
+        return self.create_record(tid, fields)["record_id"]
 
     def create_project(self, drama_name: str) -> dict:
         """创建一个新项目的完整飞书多维表格（7 张表 + 全部字段 + 公开权限）。
@@ -370,7 +432,6 @@ class FeishuBitable:
                 "人物锁定": shot.get("char_lock", ""),
                 "环境锁定": shot.get("env_lock", ""),
                 "时间线": shot.get("timeline", ""),
-                "景别运镜": shot.get("camera", ""),
                 "状态": shot.get("status", "待生成"),
                 "配音路径": shot.get("audio_path") or "",
                 "视频路径": shot.get("video_path") or "",
@@ -409,7 +470,6 @@ class FeishuBitable:
                 "char_lock": _text_val(f.get("人物锁定", "")),
                 "env_lock": _text_val(f.get("环境锁定", "")),
                 "timeline": _text_val(f.get("时间线", "")),
-                "camera": _text_val(f.get("景别运镜", "")),
                 "status": _text_val(f.get("状态", "待生成")),
                 "audio_path": _text_val(f.get("配音路径")) or None,
                 "video_path": _text_val(f.get("视频路径")) or None,
@@ -557,7 +617,6 @@ class FeishuBitable:
             "人物锁定": shot.get("char_lock", ""),
             "环境锁定": shot.get("env_lock", ""),
             "时间线": shot.get("timeline", ""),
-            "景别运镜": shot.get("camera", ""),
             "配音路径": shot.get("audio_path") or "",
             "视频路径": shot.get("video_path") or "",
             "任务ID": shot.get("task_id") or "",

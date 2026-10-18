@@ -179,92 +179,116 @@ class Workspace:
                     paths.append(abs_g)
         return paths
 
+    # 提示词引用支持的表：表名 -> (加载方法名, 行主键字段, 携带素材的文件字段[按优先级])
+    REF_SHEETS = {
+        "角色库": ("load_characters", "name", ["ref_image"]),
+        "场景库": ("load_scenes", "name", ["ref_image"]),
+        "生图工作台": ("load_workbench", "name", ["result_path", "ref_image"]),
+        "素材库": ("load_assets", "name", ["file_path"]),
+        "剧本设定": ("load_settings", "name", ["ref_image_path"]),
+        "剧本分镜表": ("load_storyboard", "shot_id", ["ref_image", "result_path", "file_path", "video_path"]),
+        # 以下表不携带可传递给生成 API 的素材，仅登记引用会报错提示
+        "角色档案": ("load_character_bibles", "name", []),
+        "剧集表": ("load_episodes", "episode", []),
+    }
+
+    IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+    VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
+
     def expand_prompt(self, template: str, *,
                       skip_self: tuple[str, str] | None = None,
-                      ) -> tuple[str, list[str], list[str], list[str]]:
-        """把 prompt 模板中的 {sheet名:名字} 标记移除，同时收集引用到的参考图。
+                      ) -> tuple[str, list[str], list[str], list[str], list[str]]:
+        """把 prompt 模板中的 {表名:行标识} 标记移除，同时收集引用到的参考素材。
 
-        支持的 sheet 引用：
-            {角色库:林砚}         → 收集角色的 ref_image
-            {场景库:写字楼大堂}    → 收集场景的 ref_image
-            {生图工作台:任务名}    → 收集工作台任务的 result_path
-            {素材库:素材ID}    → 收集素材的文件路径
+        通用语法（中英文冒号均可，推荐中文冒号）：
+            {角色库：林砚}          → 收集角色的形象图（等价 {角色库:林砚}）
+            {场景库：写字楼大堂}     → 收集场景的参考图
+            {生图工作台：任务名}     → 收集工作台任务的结果图
+            {素材库：素材ID}        → 按素材文件类型收集图片/视频
+            {剧本设定：画面风格}     → 收集设定项的全局参考图
+            {剧本分镜表：ep01_s01}  → 收集该分镜已生成的图片/视频
+            通用形式 {sheetName:rowId}：sheetName 为上表任一表名，rowId 为该行主键。
 
-        返回 (去除标记后的文本, 参考图绝对路径列表, 角色名列表, 场景名列表)。
+        标记会从提示词正文中移除（画面由参考素材锚定，不重复文字描述），
+        引用到的图片/视频作为参考素材随 API 请求传递。
+
+        返回 (文本, 参考图绝对路径列表, 角色名列表, 场景名列表, 参考视频绝对路径列表)。
         """
-        char_map = {c["name"]: c for c in self.load_characters()}
-        scene_map = {s["name"]: s for s in self.load_scenes()}
         ref_images = []
+        ref_videos = []
         characters_found = []
         scenes_found = []
         errors = []
+        sheet_cache: dict[str, dict] = {}
 
-        workbench_map = None
-        asset_map = None
+        def _row_map(sheet: str):
+            if sheet not in sheet_cache:
+                loader_name, key_field, _ = self.REF_SHEETS[sheet]
+                rows = getattr(self, loader_name)()
+                sheet_cache[sheet] = {str(r.get(key_field, "")): r for r in rows}
+            return sheet_cache[sheet]
 
-        def _ensure_workbench():
-            nonlocal workbench_map
-            if workbench_map is None:
-                workbench_map = {t["name"]: t for t in self.load_workbench()}
-
-        def _ensure_assets():
-            nonlocal asset_map
-            if asset_map is None:
-                asset_map = {a.get("name", ""): a for a in self.load_assets()}
-
-        def _collect_image(kind, name, path_val):
+        def _collect_file(kind, name, path_val):
             if not path_val:
-                errors.append(f"{{{kind}:{name}}} 对象存在但没有关联图片")
+                errors.append(f"{{{kind}：{name}}} 对象存在但没有关联素材文件")
                 return
-            abs_img = self.abs(path_val)
-            if not os.path.exists(abs_img):
-                errors.append(f"{{{kind}:{name}}} 图片文件不存在: {path_val}")
+            abs_file = self.abs(path_val)
+            if not os.path.exists(abs_file):
+                errors.append(f"{{{kind}：{name}}} 素材文件不存在: {path_val}")
                 return
-            if abs_img not in ref_images:
-                ref_images.append(abs_img)
+            ext = os.path.splitext(abs_file)[1].lower()
+            if ext in self.IMAGE_EXTS:
+                if abs_file not in ref_images:
+                    ref_images.append(abs_file)
+            elif ext in self.VIDEO_EXTS:
+                if abs_file not in ref_videos:
+                    ref_videos.append(abs_file)
+            else:
+                errors.append(f"{{{kind}：{name}}} 不支持的素材类型: {path_val}")
 
         def _replace(m):
-            kind, name = m.group(1), m.group(2)
+            kind = m.group(1).strip()
+            name = m.group(2).strip()
             if skip_self and (kind, name) == skip_self:
                 return m.group(0)
-            if kind == "角色库":
-                if name not in characters_found:
-                    characters_found.append(name)
-                char = char_map.get(name)
-                if char:
-                    _collect_image(kind, name, char.get("ref_image"))
-                else:
-                    errors.append(f"角色库中找不到「{name}」")
-            elif kind == "场景库":
-                if name not in scenes_found:
-                    scenes_found.append(name)
-                scene = scene_map.get(name)
-                if scene:
-                    _collect_image(kind, name, scene.get("ref_image"))
-                else:
-                    errors.append(f"场景库中找不到「{name}」")
-            elif kind == "生图工作台":
-                _ensure_workbench()
-                task = workbench_map.get(name)
-                if task:
-                    _collect_image(kind, name, task.get("result_path"))
-                else:
-                    errors.append(f"生图工作台中找不到「{name}」")
-            elif kind == "素材库":
-                _ensure_assets()
-                asset = asset_map.get(name)
-                if asset:
-                    _collect_image(kind, name, asset.get("file_path"))
-                else:
-                    errors.append(f"素材库中找不到「{name}」")
+            if kind not in self.REF_SHEETS:
+                errors.append(
+                    f"不支持的引用表「{kind}」；可用表：{ '、'.join(self.REF_SHEETS.keys()) }"
+                )
+                return ""
+            if kind == "角色库" and name not in characters_found:
+                characters_found.append(name)
+            if kind == "场景库" and name not in scenes_found:
+                scenes_found.append(name)
+            _, _, file_fields = self.REF_SHEETS[kind]
+            row = _row_map(kind).get(name)
+            if row is None:
+                errors.append(f"{kind}中找不到「{name}」")
+                return ""
+            if not file_fields:
+                errors.append(
+                    f"{{{kind}：{name}}} 该表不携带可传递的素材文件；"
+                    f"引用角色请用 {{角色库：名字}}，引用场景请用 {{场景库：名字}}"
+                )
+                return ""
+            collected = False
+            for field in file_fields:
+                path_val = row.get(field)
+                if path_val and os.path.exists(self.abs(path_val)):
+                    _collect_file(kind, name, path_val)
+                    collected = True
+                    break
+            if not collected and not errors:
+                errors.append(f"{{{kind}：{name}}} 对象存在但没有关联素材文件")
             return ""
 
-        text = re.sub(r"\{(角色库|场景库|生图工作台|素材库):([^}]+)\}", _replace, template)
+        # 通用 {sheetName:rowId} / {sheetName：rowId}，中英文冒号均支持
+        text = re.sub(r"\{([^{}:：]+)\s*[:：]\s*([^{}]+?)\s*\}", _replace, template)
 
         if errors:
             raise ValueError("提示词引用解析失败:\n  " + "\n  ".join(errors))
 
-        return text, ref_images, characters_found, scenes_found
+        return text, ref_images, characters_found, scenes_found, ref_videos
 
     def update_budget(self, cost: float):
         budget = self._config.setdefault("budget", {"total_limit": 5000, "spent": 0})

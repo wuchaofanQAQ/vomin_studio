@@ -38,9 +38,11 @@ description: 从剧本设定 + 分集内容中，抽取并生成每个角色的�
 
 档案末尾标注下游用途：
 - 外貌(D)+风格(B) → `character-three-view-prompt`
-- 性格(E)+台词(G) → `episode-generator` / 分镜
-- 战斗(F)+特效(F) → 打斗/特效分镜、视频生成
+- 性格(E)+台词(G) → `storyboard-prompt`（分镜演出与角色台词）
+- 战斗(F)+特效(F) → `storyboard-prompt`（打斗镜头/特效描写）、视频生成
 - 音色(C) → 配音/TTS
+
+> 注：`drama-initializer` 剧本初始化时已产出角色档案初版；本技能用于在其基础上补全/深化 8 模块。
 
 ## References
 

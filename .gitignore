@@ -7,3 +7,6 @@ __pycache__/
 dist/
 build/
 .env
+
+# 本地剧本 workspace：一个剧本一个文件夹（含本地缓存与素材，不入库）
+workspace/

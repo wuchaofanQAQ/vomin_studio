@@ -2,30 +2,50 @@
 
 harness 通过以下 CLI 命令与飞书表格和本地 workspace 交互。
 
+> **权限分类**
+> - 🔍 **只读**：随时可执行，不需要用户确认。
+> - ✏️ **写入/消费**：会改变飞书数据或消耗生成预算，**必须在确认点向用户列出清单并得到明确确认后执行**。
+
 ## 初始化
 
+**项目路径**：一个剧本一个文件夹，默认根目录 `C:\Users\Heart\PycharmProjects\vomin_studio\workspace`，即默认路径为 `workspace\{剧名}`；用户可指定任意路径。
+
 ```bash
-# 从飞书链接创建 workspace（自动发现/补全 6 张表）
-python cli.py init-from-url "<飞书URL>" <workspace路径> --name "剧名"
+# 从飞书链接创建 workspace（自动发现/补全表结构，绑定已有表格）
+#   路径省略 → 自动用 项目根/workspace/剧名
+python cli.py init-from-url "<飞书URL>" --name "剧名"
+python cli.py init-from-url "<飞书URL>" "D:\my_dramas\剧名" --name "剧名"
 
 # 从零创建（自动建飞书多维表格 + 本地 workspace）
-python cli.py init <workspace路径> --name "剧名"
+python cli.py init --name "剧名"
+python cli.py init "D:\my_dramas\剧名" --name "剧名"
 ```
 
-## 读数据
+- 两个命令完成后都会**自动写入飞书「系统设置」表**：`项目路径`、`剧名`、`创建时间`
+- `init-from-url` 不写业务数据（仅绑定 + 拉取 + 写系统设置引导项），用户主动提供链接即可在启动时执行
+- `init` 会新建飞书多维表格，必须在确认点 1 用户确认后执行
+- 剧名含非法路径字符（`\ / : * ? " < > |`）时 CLI 自动替换为 `_`
+- 本地目录迁移后用 `python cli.py set-path <workspace>` 更新系统设置中的项目路径
+
+## 读数据（🔍 只读）
 
 ```bash
 # 读取指定表当前数据（JSON 输出到 stdout）
-python cli.py read <workspace> --table 角色库
-python cli.py read <workspace> --table 场景库
 python cli.py read <workspace> --table 剧本设定
-python cli.py read <workspace> --table 剧本分镜表
+python cli.py read <workspace> --table 角色库
+python cli.py read <workspace> --table 角色档案
+python cli.py read <workspace> --table 场景库
+
+# 剧集表/分镜表按集过滤：拆分镜只读 当前集 ± 1 集（共3集），禁止全量读剧集
+python cli.py read <workspace> --table 剧集表 --episode 5 --context 1   # 第4/5/6集
+python cli.py read <workspace> --table 剧本分镜表 --episode 5           # 仅第5集已有分镜
 python cli.py read <workspace> --table 生图工作台
 python cli.py read <workspace> --table 素材库
-python cli.py read <workspace> --table 角色档案
+# 全量读剧集表仅用于总览/检查，不得作为分镜生成的输入
+python cli.py read <workspace> --table 剧集表
 ```
 
-## 写数据
+## 写数据（✏️ 需确认）
 
 ```bash
 # JSON 字符串直接写入（upsert：按 match key 更新已有/插入新增）
@@ -36,17 +56,19 @@ python cli.py write <workspace> --table 剧本设定 --data @settings.json
 ```
 
 各表 match key：
+
 | 表名 | match key | 说明 |
 |---|---|---|
-| 角色库 | `name` | 角色名 |
-| 场景库 | `name` | 场景名 |
 | 剧本设定 | `name` | 设定项名 |
+| 剧集表 | `episode` | 集号（数字） |
+| 角色库 | `name` | 角色名 |
+| 角色档案 | `name` | 角色名 |
+| 场景库 | `name` | 场景名 |
 | 剧本分镜表 | `shot_id` | 镜头ID |
 | 生图工作台 | `name` | 任务名 |
 | 素材库 | `name` | 素材ID |
-| 角色档案 | `name` | 角色名 |
 
-## 生成素材
+## 生成素材（✏️ 需确认，花预算）
 
 ```bash
 # 生成指定角色/场景/分镜/工作台任务的素材
@@ -62,23 +84,27 @@ python cli.py generate <workspace>
 python cli.py generate <workspace> --tts-only
 ```
 
-## 同步
+提示词锚定段中的 `{角色库：张三} 图1：张三，男主角，…` / `{场景库：出租屋} 图2：…` / `{sheetName:rowId} 视频N：…` 引用会在生成时自动解析：标记移除、图N/视频N 的身份说明保留，对应图片/视频按编号顺序作为参考素材随 API 传递。正文（STYLE LOCK/逐秒拆解）只用角色名/场景名，不写 `{}`。
+
+## 同步（🔍 pull 只读 / ✏️ push 需确认）
 
 ```bash
-# 推送本地数据到飞书
+# 推送本地数据到飞书（✏️）
 python cli.py push <workspace>
 
-# 从飞书拉取到本地缓存
+# 从飞书拉取到本地缓存（🔍）
 python cli.py pull <workspace>
 ```
 
-## 辅助
+## 辅助（🔍 只读）
 
 ```bash
 # 查看 workspace 状态、预算
 python cli.py status <workspace>
 
-# 预览提示词模板展开结果
+# 预览提示词模板展开结果（引用解析后的最终文本 + 参考图/参考视频清单）
 python cli.py expand <workspace>
 python cli.py expand <workspace> --shot ep01_s01
 ```
+
+`expand` 是写入前的只读预检：确认所有引用可解析、素材已就绪，再向用户发起确认。
