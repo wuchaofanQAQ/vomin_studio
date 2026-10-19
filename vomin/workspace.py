@@ -225,7 +225,21 @@ class Workspace:
             if sheet not in sheet_cache:
                 loader_name, key_field, _ = self.REF_SHEETS[sheet]
                 rows = getattr(self, loader_name)()
-                sheet_cache[sheet] = {str(r.get(key_field, "")): r for r in rows}
+                if sheet == "场景库":
+                    mapping = {}
+                    default_by_name: dict[str, dict] = {}
+                    for r in rows:
+                        scene_name = str(r.get("name", ""))
+                        view = r.get("view_angle", "正视图（默认）")
+                        mapping[f"{scene_name}·{view}"] = r
+                        if view == "正视图（默认）" or scene_name not in default_by_name:
+                            default_by_name[scene_name] = r
+                    for scene_name, r in default_by_name.items():
+                        if scene_name not in mapping:
+                            mapping[scene_name] = r
+                    sheet_cache[sheet] = mapping
+                else:
+                    sheet_cache[sheet] = {str(r.get(key_field, "")): r for r in rows}
             return sheet_cache[sheet]
 
         def _collect_file(kind, name, path_val):
@@ -258,10 +272,14 @@ class Workspace:
                 return ""
             if kind == "角色库" and name not in characters_found:
                 characters_found.append(name)
-            if kind == "场景库" and name not in scenes_found:
-                scenes_found.append(name)
+            if kind == "场景库":
+                base_name = name.split("·")[0] if "·" in name else name
+                if base_name not in scenes_found:
+                    scenes_found.append(base_name)
             _, _, file_fields = self.REF_SHEETS[kind]
             row = _row_map(kind).get(name)
+            if row is None and kind == "场景库" and "·" not in name:
+                row = _row_map(kind).get(f"{name}·正视图（默认）")
             if row is None:
                 errors.append(f"{kind}中找不到「{name}」")
                 return ""

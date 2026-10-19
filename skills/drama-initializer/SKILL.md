@@ -72,7 +72,7 @@ description: 剧本初始化技能。根据用户上传的完整剧本（txt/md/
 - **角色库**（精简版）：`name` / `char_type` / `appearance`（外貌+标志性特征）/ `voice_desc`（音色）/ `source`（初始化填"原始采集"）
 - **角色档案**（8 模块初版）：`basic_info` / `style_desc` / `voice_desc` / `appearance` / `personality` / `battle_desc` / `signature_expr` / `notes`
 
-要求：有台词有动作的角色全抽；别名归一；缺失项标"未指定"进 `notes`；画风从剧本设定继承。此初版后续可由 `character-bible-extractor` 深化。
+要求：有台词有动作的角色全抽；别名归一；缺失项标"未指定"进 `notes`；画风从剧本设定继承。逐集分析阶段如发现新角色，由 `drama-episode-analyzer` 补充完整档案。
 
 ### Step 5 — 输出、说明与确认
 
@@ -188,7 +188,7 @@ python cli.py write $WS --table 角色档案 --data '<角色档案部分>'
 - 角色三视图/定妆照 → `character-three-view-prompt`（吃角色库 appearance + 画面风格）
 - 核心场景空镜 → `scene-image-prompt`（吃剧本设定 + 场次列表）
 - 逐集分镜 + 视频提示词 → `storyboard-prompt`（吃剧集表 + 角色档案 + 场景库）
-- 角色档案深化/补全 → `character-bible-extractor`
+- 逐集新角色识别与档案产出 → `drama-episode-analyzer`
 
 ## References
 

@@ -257,31 +257,39 @@ def _generate_character(ws, char, chars_list):
 
 
 def _generate_scene(ws, scene, scenes_list):
-    """生成单个场景参考图。"""
+    """生成单个场景视角参考图。"""
     from vomin.ark.client import ArkClient
     from vomin.ark.image import ImageClient
 
     prompt_template = scene.get("gen_prompt", "")
+    view_angle = scene.get("view_angle", "正视图（默认）")
+    label = f"{scene['name']}·{view_angle}"
     if not prompt_template:
-        print(f"  跳过 {scene['name']}: 未填写生成提示词")
+        print(f"  跳过 {label}: 未填写生成提示词")
         return
 
     ark = ArkClient()
     image = ImageClient(ark)
     model = scene.get("gen_model") or ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
 
-    final_prompt, _, _, _, _ = ws.expand_prompt(prompt_template, skip_self=("场景库", scene["name"]))
+    skip_key = f"{scene['name']}·{view_angle}"
+    final_prompt, ref_images, _, _, _ = ws.expand_prompt(
+        prompt_template, skip_self=("场景库", skip_key))
 
+    print(f"  视角: {view_angle}")
     print(f"  模型: {model}")
     print(f"  提示词: {final_prompt[:80]}...")
+    if ref_images:
+        print(f"  参考图: {len(ref_images)} 张")
 
     from datetime import datetime
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_name = scene["name"].replace(" ", "_")
+    safe_name = f"{scene['name']}_{view_angle}".replace(" ", "_")
     rel_path = f"ref/scenes/{safe_name}_{ts}.png"
 
     paths = image.generate_to_dir(model=model, prompt=final_prompt,
-                                  save_dir=ws.abs("ref/scenes"), n=1)
+                                  save_dir=ws.abs("ref/scenes"), n=1,
+                                  **({"ref_images": ref_images} if ref_images else {}))
     if paths:
         os.rename(paths[0], ws.abs(rel_path))
         scene["ref_image"] = rel_path
@@ -290,13 +298,13 @@ def _generate_scene(ws, scene, scenes_list):
         if ws.feishu:
             try:
                 ws.feishu.update_scene(ws, scene)
-                print(f"  飞书已更新: {scene['name']}")
+                print(f"  飞书已更新: {label}")
             except Exception as e:
                 print(f"  飞书更新失败: {e}")
         size = os.path.getsize(ws.abs(rel_path)) / 1024
         print(f"  已保存: {rel_path} ({size:.0f} KB)")
         if ws.feishu:
-            _add_asset(ws, "场景参考图", scene["name"], rel_path, model, final_prompt)
+            _add_asset(ws, "场景参考图", label, rel_path, model, final_prompt)
 
 
 def _generate_workbench_task(ws, task, tasks_list):
@@ -541,12 +549,19 @@ def cmd_generate(args):
 
         elif kind == "场景库":
             scenes = ws.load_scenes()
-            scene = next((s for s in scenes if s["name"] == target_id), None)
-            if not scene:
+            if "·" in target_id:
+                scene_name, view = target_id.split("·", 1)
+                matched = [s for s in scenes
+                           if s["name"] == scene_name and s.get("view_angle", "正视图（默认）") == view]
+            else:
+                matched = [s for s in scenes if s["name"] == target_id]
+            if not matched:
                 print(f"场景库中找不到: {target_id}")
                 sys.exit(1)
-            print(f"=== 生成场景: {target_id} ===")
-            _generate_scene(ws, scene, scenes)
+            for scene in matched:
+                label = f"{scene['name']}·{scene.get('view_angle', '正视图（默认）')}"
+                print(f"=== 生成场景: {label} ===")
+                _generate_scene(ws, scene, scenes)
 
         elif kind == "剧本分镜表":
             shots = ws.load_storyboard()

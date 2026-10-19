@@ -50,7 +50,7 @@ python cli.py read $WS --table 剧本设定         # 画风 / 平台调性 / �
 # 3. 角色档案与角色库（全量，供出场角色身份与外形核对）
 python cli.py read $WS --table 角色库           # 角色名 + 形象图素材状态
 python cli.py read $WS --table 角色档案         # 性格 / 外貌 / 音色 / 标志性表达
-# 4. 场景库（全量，用于依赖场景比对）
+# 4. 场景库（全量，含 description 空间设计，用于依赖场景比对）
 python cli.py read $WS --table 场景库
 # 5. 已存在的本集分镜（重拆/续写时，避免重复）
 python cli.py read $WS --table 剧本分镜表 --episode N
@@ -96,13 +96,24 @@ python cli.py read $WS --table 剧本分镜表 --episode N
 - **红果短剧节奏要求**：节奏极快，开场 1~2 个分镜内必须进入核心冲突；分镜内动作连续、台词短促、不拖沓；但该有的细节场景（回忆闪回、标志道具特写、环境氛围）必须保留，用 5~10s 分镜内的微段承载
 - **单集总时长不由剧本设定预设**（不固定 2 分钟），由分镜总时长决定；合计时检验与剧本叙事体量匹配即可
 
-### Step 2 — 解析分镜依赖场景
+### Step 2 — 解析分镜依赖场景 + 视角需求
 
-逐镜头校验环境锁定，产出**场景依赖清单**：
+逐镜头校验环境锁定，产出**场景依赖清单**（含每个场景需要的视角）：
 
 1. 场景名必须与场景库主键一致；库中找不到 → 标记"需补场景"，进 `new_scenes`
 2. 同时段同地点的镜头合并为同一场景；不同时段/天气视为不同场景行
-3. 去重输出本集全部场景；新增场景交 harness 调 `scene-image-prompt` 补空镜，**素材就绪前不生成这些镜头的视频**
+3. **为每个场景判断需要哪些视角**，判断依据是本集分镜的拍摄需求。场景库中已有 `description` 空间设计（由 drama-episode-analyzer 产出），可参考 P0/P1/M 主轴方向来更精准地判断视角需求：
+
+   | 分镜特征 | 需要的视角 |
+   |---------|-----------|
+   | 所有场景（基线） | 正视图（默认） |
+   | 对话/对峙场景，角色面对面互动 | + 反打图 |
+   | 需要展示空间布局全貌、多区域关系 | + 45°俯视斜角 |
+   | 需要精确平面布局、走位路线规划 | + 90°垂直俯视 |
+   | 跨区域走位，需不同方向的空间纵深 | + 反打图 和/或 45°俯视斜角 |
+
+4. 去重输出本集全部场景及所需视角；harness 差分比对场景库，缺失的场景/视角交 `scene-image-prompt` 补生成
+5. **提示词中可以先写 `{场景库：场景名·视角}` 占位引用**，不要求素材此刻已存在；真正解析到图片文件是 `expand` / `generate` 时才做
 
 规则与自查见 `references/dependency-resolution.md`。
 
@@ -131,8 +142,10 @@ python cli.py read $WS --table 剧本分镜表 --episode N
 **素材锚定写法（两步，铁律）**：
 1. 在 STYLE LOCK 之后写「参考素材锚定」段：每个引用独占一行，按顺序编号，并写清身份——
    - 角色：`{角色库：张三} 图1：张三，男主角，28岁外卖员，黑色短发、左眉骨伤疤，黑色冲锋衣`
-   - 场景：`{场景库：出租屋} 图2：出租屋，张三住处，筒子楼一居室，室内·夜·雨，冷蓝调`
+   - 场景（默认视角）：`{场景库：出租屋} 图2：出租屋，张三住处，筒子楼一居室，室内·夜·雨，冷蓝调`
+   - 场景（指定视角）：`{场景库：出租屋·反打图} 图3：出租屋反面回望，从窗户方向看向入户门，同一空间同一光线`
    - 动作衔接：`{剧本分镜表：ep01_s01} 视频1：上一镜成片，张三门口动作衔接`
+   - 同一场景的多个视角可同时引用，为模型提供多角度空间参考以保证场景一致性
 2. **正文（STYLE LOCK 其余子段、⑨⑩⑪）中不出现任何 `{}`，直接用角色名/场景名**；长相、服装、瞳色不写文字，由参考图锚定
 
 完整锚定格式见 `references/asset-reference.md`。
@@ -186,14 +199,19 @@ python cli.py read $WS --table 剧本分镜表 --episode N
       "lighting": "低调，冷暖对比",
       "characters": ["张三"],
       "scene": "出租屋",
-      "prompt": "## [参考素材锚定]\n{角色库：张三} 图1：张三，男主角，28岁外卖员，黑色短发、左眉骨伤疤，黑色冲锋衣\n{场景库：出租屋} 图2：出租屋，张三住处，筒子楼一居室，室内·夜·雨，冷蓝调\n\n## [STYLE LOCK]\n①Ultra-detailed cinematic film...（完整十二子段，正文直接用张三/出租屋，不再出现{}）",
+      "prompt": "## [参考素材锚定]\n{角色库：张三} 图1：张三，男主角，28岁外卖员，黑色短发、左眉骨伤疤，黑色冲锋衣\n{场景库：出租屋} 图2：出租屋正面，张三住处，筒子楼一居室，室内·夜·雨，冷蓝调\n{场景库：出租屋·反打图} 图3：出租屋反面回望，从窗户方向看向入户门，同一空间\n\n## [STYLE LOCK]\n①Ultra-detailed cinematic film...（完整十二子段，正文直接用张三/出租屋，不再出现{}）",
       "status": "待生成"
     }
   ],
   "dependencies": {
-    "scenes": ["出租屋", "写字楼大堂"],
+    "scenes": [
+      {"name": "出租屋", "views": ["正视图（默认）", "反打图"]},
+      {"name": "写字楼大堂", "views": ["正视图（默认）"]}
+    ],
     "characters": ["张三", "李四"],
-    "new_scenes": ["重生前出租屋"],
+    "new_scenes": [
+      {"name": "重生前出租屋", "views": ["正视图（默认）"]}
+    ],
     "new_characters": []
   }
 }
@@ -201,10 +219,14 @@ python cli.py read $WS --table 剧本分镜表 --episode N
 ````
 
 harness 动作：
-1. 读 `dependencies.new_scenes / new_characters`，调对应 skill 补资产并等待素材就绪
-2. 用户确认后 `python cli.py write $WS --table 剧本分镜表 --data '<shots JSON>'`
-3. 预览展开结果：`python cli.py expand $WS --shot ep01_s01`（检查锚定段映射、正文无残留 `{}`、素材清单齐全）
-4. 用户确认后 `python cli.py generate $WS --tts-only` → `python cli.py generate $WS` → `python cli.py push $WS`
+1. 读 `dependencies`，**差分比对场景库**：逐个 `scenes` / `new_scenes` 条目的每个 view，检查场景库中是否已有该 `场景名·视角` 行
+   - 已有且素材就绪 → 复用
+   - 已有但缺某视角 → 调 `scene-image-prompt` 补该视角
+   - 全新场景 → 调 `scene-image-prompt` 按 views 列表逐步出图
+2. 读 `new_characters`，调对应 skill 补角色档案 + 三视图
+3. 素材就绪后，用户确认 → `python cli.py write $WS --table 剧本分镜表 --data '<shots JSON>'`
+4. 预览展开结果：`python cli.py expand $WS --shot ep01_s01`（检查锚定段映射、正文无残留 `{}`、素材清单齐全）
+5. 用户确认后 `python cli.py generate $WS --tts-only` → `python cli.py generate $WS` → `python cli.py push $WS`
 
 > 重要：write/generate/push 都必须在用户明确确认后才执行（见 ai-drama-harness 的写入授权铁律）。
 

@@ -21,8 +21,8 @@
 |---|---|---|
 | ai-drama-harness | `skills/ai-drama-harness/SKILL.md` | 飞书链接+上传剧本、剧本初始化 |
 | drama-initializer | `skills/drama-initializer/SKILL.md` | 剧本初始化、导入剧本、上传剧本 |
-| character-bible-extractor | `skills/character-bible-extractor/SKILL.md` | 深化角色档案、从剧本提取角色 |
 | character-three-view-prompt | `skills/character-three-view-prompt/SKILL.md` | 出角色三视图 |
+| drama-episode-analyzer | `skills/drama-episode-analyzer/SKILL.md` | 逐集预分析、场景空间设计 |
 | scene-image-prompt | `skills/scene-image-prompt/SKILL.md` | 出场景空镜 |
 | storyboard-prompt | `skills/storyboard-prompt/SKILL.md` | 拆分镜、分镜脚本、视频提示词、CLIP |
 

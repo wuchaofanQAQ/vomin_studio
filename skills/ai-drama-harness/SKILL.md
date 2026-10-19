@@ -11,7 +11,7 @@ description: AI 短剧全自动生产编排层。用户给飞书表格链接+上
 1. 初始化 workspace 并绑定飞书
 2. 按序调度下游 skill 产出文字内容
 3. 在用户确认后通过 CLI 将产出写入飞书 + 触发素材生成
-4. 在 5 个关键节点暂停等待人类确认
+4. 在 4 个关键节点暂停等待人类确认
 5. 循环滚动直到全集完成
 
 ## ★ 写入授权铁律（最高优先级，覆盖一切流程描述）
@@ -58,7 +58,7 @@ description: AI 短剧全自动生产编排层。用户给飞书表格链接+上
 5. **只读命令无需确认**：read/pull/status/expand 随时可执行。
 6. **返工同理**：用户对已生成图片/视频要求返工，重新生成前同样要列清单确认。
 
-> 唯一例外：用户启动时明确说"全自动/不用确认/跳过确认"，则跳过**对话确认点**（#1 #4），但飞书图片/视频审核（#2 #3 #5）必须保留，且在启动时要向用户复述一遍"将自动写入哪些内容"作为一次性总授权。
+> 唯一例外：用户启动时明确说"全自动/不用确认/跳过确认"，则跳过**对话确认点**（#1 #3），但飞书图片/视频审核（#2 #4）必须保留，且在启动时要向用户复述一遍"将自动写入哪些内容"作为一次性总授权。
 
 ## 启动协议
 
@@ -93,15 +93,14 @@ python cli.py init-from-url "https://xxx.feishu.cn/base/XxxYyyZzz" --name "重�
 - `init` / `init-from-url` 完成后自动向飞书「系统设置」表写入 `项目路径`、`剧名`、`创建时间`，之后凭飞书 URL 即可定位本地项目
 - 启动后将实际路径设为全局变量 `WS`（默认即 `.../workspace/剧名`）
 
-## 确认点协议（共 5 个）
+## 确认点协议（共 4 个）
 
 | # | 标题 | Phase | 方式 | 确认后动作 |
 |---|---|---|---|---|
 | 1 | 剧本初始化（设定+剧集+角色档案） | A1 | 对话确认 | init（模式B）+ write 四张表 |
-| 2 | 角色形象 | A3 | 飞书审核 | 三视图 generate |
-| 3 | 核心场景 | A4 | 飞书审核 | 场景图 generate |
-| 4 | 分镜与视频提示词（逐集） | B1 | 对话确认 | 补资产 + write 分镜表 + generate |
-| 5 | 视频成片（逐集） | B2 | 飞书审核 | 返工/通过，进入下一集 |
+| 2 | 角色形象 | A2 | 飞书审核 | 三视图 generate |
+| 3 | 分镜与视频提示词（逐集） | B2 | 对话确认 | 补资产 + write 分镜表 + generate |
+| 4 | 视频成片（逐集） | B3 | 飞书审核 | 返工/通过，进入下一集 |
 
 标准模板与处理逻辑见 `references/checkpoint-protocol.md`。
 
@@ -127,8 +126,6 @@ python cli.py init-from-url "https://xxx.feishu.cn/base/XxxYyyZzz" --name "重�
      python cli.py write $WS --table 角色档案 --data '<角色档案部分>'
      ```
 5. 用户提修改意见 → 只改草案，重新走确认点 1，**不写入**
-6. 角色档案如需深化（补全缺失项），可在确认后另调 `character-bible-extractor`，更新档案前仍需列清单确认
-
 ### A2: 角色三视图 → 出图
 
 1. 调用 `character-three-view-prompt` skill，为每个核心角色出三视图提示词（草案）
@@ -139,22 +136,33 @@ python cli.py init-from-url "https://xxx.feishu.cn/base/XxxYyyZzz" --name "重�
    ```
 3. **确认点 2: 角色形象** — 飞书审核角色图片
 
-### A3: 核心场景 → 出图
-
-1. 从剧集表场次列表中提取 5~8 个核心高频场景（名称已在初始化时归一化）
-2. 调用 `scene-image-prompt` skill 生成场景提示词（草案）
-3. 确认后才写入并触发生成：
-   ```bash
-   python cli.py write $WS --table 场景库 --data '<JSON>'
-   python cli.py generate $WS --target 场景库:写字楼大堂
-   ```
-4. **确认点 3: 核心场景** — 飞书审核场景图片
-
-Phase A 完成后，全局资产就绪：设定卡 + 剧集表（含原文）+ 角色档案（含形象图）+ 核心场景图。
+Phase A 完成后，全局资产就绪：设定卡 + 剧集表（含原文）+ 角色档案（含形象图）。场景空间设计和出图统一在 Phase B 按需处理。
 
 ## Phase B — 逐集滚动
 
 对每一集重复：
+
+### B0: 逐集预分析（drama-episode-analyzer）
+
+每集开头、拆分镜之前，先运行 `drama-episode-analyzer`，为本集涉及的场景产出空间设计、识别新角色。
+
+1. 读取上下文（只读，无需确认）：
+   ```bash
+   python cli.py read $WS --table 剧集表 --episode N --context 1
+   python cli.py read $WS --table 剧本设定
+   python cli.py read $WS --table 场景库     # 检查哪些场景已有 description
+   python cli.py read $WS --table 角色库
+   ```
+2. 调用 `drama-episode-analyzer` skill，产出：
+   - 该集每个场景的空间设计文档（`description`），已有 description 的场景跳过
+   - 新角色识别 + 完整 8 模块角色档案（不在角色库中的角色）
+3. **轻量确认**（不计为正式确认点）：展示场景设计摘要 + 新角色列表（含档案摘要），确认后写入：
+   ```bash
+   python cli.py write $WS --table 场景库 --data '[{"name":"出租屋","view_angle":"正视图（默认）","description":"..."}]'
+   python cli.py write $WS --table 角色库 --data '<new_characters.角色库>'
+   python cli.py write $WS --table 角色档案 --data '<new_characters.角色档案>'
+   ```
+   新角色后续由 character-three-view-prompt 出图。
 
 ### B1: 分镜 + 依赖解析 + 视频提示词（storyboard-prompt 一体完成）
 
@@ -164,17 +172,22 @@ Phase A 完成后，全局资产就绪：设定卡 + 剧集表（含原文）+ �
    python cli.py read $WS --table 剧本设定
    python cli.py read $WS --table 角色库
    python cli.py read $WS --table 角色档案
-   python cli.py read $WS --table 场景库
+   python cli.py read $WS --table 场景库    # 此时已有 B0 产出的 description
    ```
    - 前 1 集：承接钩子、人物进场状态与情绪起点；后 1 集：本集要埋的钩子与离场状态
    - 目的：把握本集角色心境、场景布局、人物调度；全量读剧集会导致上下文膨胀、输出变差
 2. 调用 `storyboard-prompt` skill，只对当前集 N 产出：
    - 逐镜头分镜（含时间线/景别运镜/描述/台词/构图光影）
-   - 场景依赖清单 + 角色依赖清单（含新增待补）
-   - 每个镜头的 V8 视频提示词：开头「参考素材锚定」段用 `{角色库：…} 图N：是谁+身份` / `{场景库：…} 图N：什么场景+时空` 逐行声明，正文直接用角色名/场景名、不出现 `{}`
+   - **场景依赖清单**（含每个场景需要的视角列表）+ 角色依赖清单
+   - 每个镜头的 V8 视频提示词：开头「参考素材锚定」段用 `{角色库：…} 图N：是谁+身份` / `{场景库：…} 图N：什么场景+时空` 逐行声明（场景引用可指定视角如 `{场景库：客厅·反打图}`，不指定视角则取默认正视图），正文直接用角色名/场景名、不出现 `{}`
 3. **草案沟通**：用户提意见 → 只改草案，不写飞书
-4. **确认点 4: 分镜与提示词** — 列入库清单：
-   - 新增场景/角色：先列出补资产动作（补提示词 + 出图），确认后补齐
+4. **场景差分比对**：harness 拿 `dependencies.scenes` + `dependencies.new_scenes` 逐条检查场景库：
+   - 逐个 `{name}·{view}` 组合检查场景库中是否已有该行且素材就绪
+   - 已有且素材就绪 → 复用
+   - 缺失的场景/视角 → 汇总为**待补场景清单**，交 `scene-image-prompt` 补出（正视图优先，后续视角引用正视图作母版，逐步生成确认）
+   - 新增角色 → 走角色档案 + 三视图补生成
+   - **补资产期间分镜草案不变**，提示词中的 `{场景库：…}` 占位引用在素材就绪后才能 expand
+5. **确认点 3: 分镜与提示词** — 列入库清单（全部资产就绪后）：
    - `write --table 剧本分镜表` 写入分镜
    - `expand --shot <id>` 可预览锚定段映射与素材清单，确认正文无残留 `{}`、素材齐全
    - 确认后才执行：
@@ -186,7 +199,7 @@ Phase A 完成后，全局资产就绪：设定卡 + 剧集表（含原文）+ �
 
 ### B2: 视频成片审核 → 下一集
 
-1. **确认点 5: 视频成片** — 飞书审核
+1. **确认点 4: 视频成片** — 飞书审核
 2. 用户回复"继续"后：
    ```bash
    python cli.py pull $WS
@@ -199,14 +212,14 @@ Phase A 完成后，全局资产就绪：设定卡 + 剧集表（含原文）+ �
 | Skill | Phase | 职责 |
 |---|---|---|
 | `drama-initializer` | A1 | 上传剧本 → 剧本设定 + 剧集 + 角色档案 |
-| `character-bible-extractor` | A1+（可选深化） | 角色档案补全/深化 |
 | `character-three-view-prompt` | A2 | 角色 → 三视图出图提示词 |
-| `scene-image-prompt` | A3/B1 | 场景 → 空镜出图提示词 |
+| `drama-episode-analyzer` | B0 | 逐集预分析 → 场景空间设计 + 新角色识别 |
 | `storyboard-prompt` | B1 | 剧本 → 分镜 + 依赖解析 + 视频提示词 |
+| `scene-image-prompt` | B1（补缺） | 场景 → 空镜出图提示词（执行者，读 description） |
 
 ## References
 
-- `references/checkpoint-protocol.md` — 5 个确认点标准流程 + 写入授权状态机
+- `references/checkpoint-protocol.md` — 4 个确认点标准流程 + 写入授权状态机
 - `references/pipeline.md` — 完整编排流程图 + 场景两段式调度规则
 - `references/data-contracts.md` — 各 skill 数据交接格式与字段约定
 - `references/cli-commands.md` — CLI 命令速查表（标注只读 / 需确认）

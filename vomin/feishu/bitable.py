@@ -85,6 +85,10 @@ class FeishuBitable:
             "primary_rename": "场景ID",
             "fields": [
                 {"field_name": "场景名", "type": 1},
+                {"field_name": "视角", "type": 3, "property": {"options": [
+                    {"name": "正视图（默认）"}, {"name": "反打图"},
+                    {"name": "45°俯视斜角"}, {"name": "90°垂直俯视"},
+                ]}},
                 {"field_name": "场景类型", "type": 3, "property": {"options": [
                     {"name": "核心"}, {"name": "剧情"}, {"name": "临时"},
                 ]}},
@@ -556,6 +560,7 @@ class FeishuBitable:
                 continue
             scenes.append({
                 "name": name,
+                "view_angle": _text_val(f.get("视角", "")) or "正视图（默认）",
                 "scene_type": _text_val(f.get("场景类型", "")),
                 "description": _text_val(f.get("场景描述", "")),
                 "related_episodes": _text_val(f.get("关联集数", "")),
@@ -595,6 +600,7 @@ class FeishuBitable:
             return
         fields = {
             "场景名": scene.get("name", ""),
+            "视角": scene.get("view_angle", "正视图（默认）"),
             "场景类型": scene.get("scene_type", ""),
             "场景描述": scene.get("description", ""),
             "关联集数": scene.get("related_episodes", ""),
@@ -710,7 +716,7 @@ class FeishuBitable:
                 print(f"  飞书创建角色档案: {b['name']}")
 
     def push_scenes(self, ws):
-        """把本地 scenes.json 同步到飞书场景库。用场景名做匹配键。"""
+        """把本地 scenes.json 同步到飞书场景库。用场景名+视角做匹配键。"""
         table_id = self._table_id(ws, "场景库", "FEISHU_TABLE_SCENE")
         if not table_id:
             print("  未配置场景库，跳过")
@@ -722,16 +728,21 @@ class FeishuBitable:
             return
 
         existing = self.list_records(table_id)
-        name_to_record = {}
+        key_to_record = {}
         for rec in existing:
-            name = _text_val(rec.get("fields", {}).get("场景名"))
+            f = rec.get("fields", {})
+            name = _text_val(f.get("场景名"))
+            view = _text_val(f.get("视角", "")) or "正视图（默认）"
             if name:
-                name_to_record[name] = rec["record_id"]
+                key_to_record[f"{name}·{view}"] = rec["record_id"]
 
         for s in scenes:
+            view_angle = s.get("view_angle", "正视图（默认）")
+            label = f"{s['name']}·{view_angle}"
             fields = {
-                "场景ID": s.get("name", ""),
+                "场景ID": label,
                 "场景名": s.get("name", ""),
+                "视角": view_angle,
                 "场景类型": s.get("scene_type", ""),
                 "场景描述": s.get("description", ""),
                 "关联集数": s.get("related_episodes", ""),
@@ -740,13 +751,13 @@ class FeishuBitable:
                 "文件路径": s.get("ref_image") or "",
                 "生成模型": s.get("gen_model", ""),
             }
-            record_id = name_to_record.get(s["name"])
+            record_id = key_to_record.get(label)
             if record_id:
                 self.update_record(table_id, record_id, fields)
-                print(f"  飞书更新场景: {s['name']}")
+                print(f"  飞书更新场景: {label}")
             else:
                 self.create_record(table_id, fields)
-                print(f"  飞书创建场景: {s['name']}")
+                print(f"  飞书创建场景: {label}")
 
     def push_settings(self, ws):
         """把本地 settings.json 同步到飞书剧本设定表。用设定项名做匹配键。"""
