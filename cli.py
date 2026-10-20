@@ -262,7 +262,7 @@ def _generate_scene(ws, scene, scenes_list):
     from vomin.ark.image import ImageClient
 
     prompt_template = scene.get("gen_prompt", "")
-    view_angle = scene.get("view_angle", "正视图（默认）")
+    view_angle = scene.get("view_angle", "全景基准图（默认）")
     label = f"{scene['name']}·{view_angle}"
     if not prompt_template:
         print(f"  跳过 {label}: 未填写生成提示词")
@@ -552,14 +552,14 @@ def cmd_generate(args):
             if "·" in target_id:
                 scene_name, view = target_id.split("·", 1)
                 matched = [s for s in scenes
-                           if s["name"] == scene_name and s.get("view_angle", "正视图（默认）") == view]
+                           if s["name"] == scene_name and s.get("view_angle", "全景基准图（默认）") == view]
             else:
                 matched = [s for s in scenes if s["name"] == target_id]
             if not matched:
                 print(f"场景库中找不到: {target_id}")
                 sys.exit(1)
             for scene in matched:
-                label = f"{scene['name']}·{scene.get('view_angle', '正视图（默认）')}"
+                label = f"{scene['name']}·{scene.get('view_angle', '全景基准图（默认）')}"
                 print(f"=== 生成场景: {label} ===")
                 _generate_scene(ws, scene, scenes)
 
