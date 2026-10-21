@@ -157,7 +157,7 @@ Phase A 完成后，全局资产就绪：设定卡 + 角色档案（含形象图
    python cli.py read $WS --table 角色库
    python cli.py read $WS --table 剧本表 --episode N --context 1   # 仅取前一集承接；默认不含小说原文
    ```
-2. 调用 `novel-to-script` skill，产出该集剧本表一整行：`小说章节`、`小说内容`（原文逐字留存）、`完整剧本`（转化后）、集名、核心事件、出场角色、上下集钩子、场次列表
+2. 调用 `novel-to-script` skill，产出该集剧本表一整行：`小说章节`、`小说内容`（原文逐字留存）、`完整剧本`（转化后）、集名（核心事件/出场角色/钩子/场次只在说明里给，不落表）
 3. **轻量确认**（不计为正式确认点）：展示剧本全文 + 字段摘要 + 说明（【补】项、新角色、场景名归一化对照、无钩子警示），并列出写入清单（集号、章节、`小说内容`/`完整剧本` 字数、状态），确认后写入：
    ```bash
    python cli.py write $WS --table 剧本表 --data '<剧本表部分>'
@@ -211,15 +211,21 @@ B0a 写入剧本表之后、拆分镜之前运行。**逐集增量**：库里已
    - 新增角色 → 走角色档案 + 三视图补生成
    - **补资产期间分镜草案不变**，锚点块里的 `{场景库：…}` 引用在素材就绪后才能 expand；未出图的资产只进"待补资产"，不进锚点块
 5. **确认点 3: 分镜与提示词** — 列入库清单（全部资产就绪后）：
+   - 交付前先跑机器校验，错误必须为 0：
+     ```bash
+     python skills/director-segment-prompt/scripts/check_storyboard.py workspace/{剧名}/drafts/ep01_storyboard.md
+     ```
    - `write --table 剧本分镜表` 写入分镜（一段一行，`prompt` 为完整段文本）
    - `expand --shot <id>` 可预览锚点映射与素材清单，确认锚点块外无残留 `{}`、素材齐全
    - ★ **成片时长与配音**：`generate` 按分镜行 `timeline`（如 `00:00-00:20`）的真实秒数出片，上限 30 秒，解析不出才回退 `ark.default_duration`；成本按实际秒数估算，清单里列出各段秒数。配音按 `dialogue` 每行「角色：台词」逐句、从**角色档案**取音色（`voice_desc`）合成，档案缺该角色或音色会警告并用默认音色——写分镜前先确认对白角色都有角色档案且填了音色
-   - 确认后才执行：
+   - 确认后才执行（**先跑资产闸门，不过不许调模型**）：
      ```bash
+     python cli.py preflight $WS --episode N    # 生产态资产复检，0 问题才继续
      python cli.py generate $WS --tts-only
      python cli.py generate $WS
      python cli.py push $WS
      ```
+   - 分镜可以先在**预览态**写入评审：`preflight` 未过也能写、能 `expand` 试跑，但审计第 3 项记 `PENDING（预览）`、不得写 `PASS`；只有 preflight 全过、进入生产态后才写 `18 项硬审计：PASS`
 
 ### B2: 视频成片审核 → 下一集
 

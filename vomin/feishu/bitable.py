@@ -80,20 +80,26 @@ class FeishuBitable:
             "primary_rename": "场景ID",
             "fields": [
                 {"field_name": "场景名", "type": 1},
-                {"field_name": "场景类型", "type": 3, "property": {"options": [
-                    {"name": "核心"}, {"name": "剧情"}, {"name": "临时"},
-                ]}},
                 {"field_name": "视角", "type": 1},
                 {"field_name": "场景描述", "type": 1},
                 {"field_name": "参考场景", "type": 1},
                 {"field_name": "作用关联", "type": 1},
                 {"field_name": "关联集数", "type": 1},
+                {"field_name": "绑定场次", "type": 1},
                 {"field_name": "来源", "type": 3, "property": {"options": [
                     {"name": "原始采集"}, {"name": "AIGC生成"}, {"name": "手动制作"},
                 ]}},
                 {"field_name": "生成提示词", "type": 1},
+                {"field_name": "负向提示词", "type": 1},
                 {"field_name": "文件路径", "type": 1},
                 {"field_name": "生成模型", "type": 1},
+                {"field_name": "出图状态", "type": 3, "property": {"options": [
+                    {"name": "待出图"}, {"name": "生成中"}, {"name": "已出图"},
+                    {"name": "需重抽"}, {"name": "已通过"},
+                ]}},
+                {"field_name": "一致性检查", "type": 3, "property": {"options": [
+                    {"name": "未检查"}, {"name": "通过"}, {"name": "不通过"},
+                ]}},
             ],
         },
         "素材库": {
@@ -131,11 +137,6 @@ class FeishuBitable:
                 {"field_name": "集名", "type": 1},
                 {"field_name": "小说章节", "type": 1},
                 {"field_name": "小说内容", "type": 1},
-                {"field_name": "核心事件", "type": 1},
-                {"field_name": "出场角色", "type": 1},
-                {"field_name": "上集钩子", "type": 1},
-                {"field_name": "结尾钩子", "type": 1},
-                {"field_name": "场次列表", "type": 1},
                 {"field_name": "完整剧本", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待转剧本"}, {"name": "待编写"}, {"name": "草稿"},
@@ -147,8 +148,17 @@ class FeishuBitable:
             "primary_rename": "任务名",
             "fields": [
                 {"field_name": "提示词", "type": 1},
-                {"field_name": "模型", "type": 1},
-                {"field_name": "分辨率", "type": 1},
+                {"field_name": "模型", "type": 3, "property": {"options": [
+                    {"name": "doubao-seedream-5-0-flash-260915"},
+                    {"name": "doubao-seedream-4-0-250828"},
+                    {"name": "doubao-seedream-3-0-t2i-250415"},
+                ]}},
+                {"field_name": "分辨率", "type": 3, "property": {"options": [
+                    {"name": "1K"}, {"name": "2K"}, {"name": "4K"},
+                ]}},
+                {"field_name": "画面比例", "type": 3, "property": {"options": [
+                    {"name": "16:9"}, {"name": "9:16"},
+                ]}},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待生成"}, {"name": "生成中"}, {"name": "已完成"}, {"name": "生成失败"},
                 ]}},
@@ -555,14 +565,17 @@ class FeishuBitable:
             scenes.append({
                 "name": name,
                 "view_angle": _text_val(f.get("视角", "")) or "全景基准图（默认）",
-                "scene_type": _text_val(f.get("场景类型", "")),
                 "description": _text_val(f.get("场景描述", "")),
                 "ref_scenes": _text_val(f.get("参考场景", "")),
                 "relation_note": _text_val(f.get("作用关联", "")),
                 "related_episodes": _text_val(f.get("关联集数", "")),
+                "bind_scenes": _text_val(f.get("绑定场次", "")),
                 "ref_image": _text_val(f.get("文件路径")) or None,
                 "gen_prompt": _text_val(f.get("生成提示词", "")),
+                "negative_prompt": _text_val(f.get("负向提示词", "")),
                 "gen_model": _text_val(f.get("生成模型")) or None,
+                "gen_status": _text_val(f.get("出图状态", "")) or "待出图",
+                "consistency": _text_val(f.get("一致性检查", "")) or "未检查",
                 "source": _text_val(f.get("来源", "")),
                 "_record_id": rec["record_id"],
             })
@@ -594,15 +607,18 @@ class FeishuBitable:
         fields = {
             "场景名": scene.get("name", ""),
             "视角": scene.get("view_angle", "全景基准图（默认）"),
-            "场景类型": scene.get("scene_type", ""),
             "场景描述": scene.get("description", ""),
             "参考场景": scene.get("ref_scenes", ""),
             "作用关联": scene.get("relation_note", ""),
             "关联集数": scene.get("related_episodes", ""),
+            "绑定场次": scene.get("bind_scenes", ""),
             "来源": scene.get("source", ""),
             "生成提示词": scene.get("gen_prompt", ""),
+            "负向提示词": scene.get("negative_prompt", ""),
             "文件路径": scene.get("ref_image") or "",
             "生成模型": scene.get("gen_model") or "",
+            "出图状态": scene.get("gen_status", "待出图"),
+            "一致性检查": scene.get("consistency", "未检查"),
         }
         self.update_record(table_id, record_id, fields)
 
@@ -735,15 +751,18 @@ class FeishuBitable:
                 "场景ID": label,
                 "场景名": s.get("name", ""),
                 "视角": view_angle,
-                "场景类型": s.get("scene_type", ""),
                 "场景描述": s.get("description", ""),
                 "参考场景": s.get("ref_scenes", ""),
                 "作用关联": s.get("relation_note", ""),
                 "关联集数": s.get("related_episodes", ""),
-                "来源": s.get("source", "AIGC生成") if s.get("ref_image") else "原始采集",
+                "绑定场次": s.get("bind_scenes", ""),
+                "来源": s.get("source") or ("AIGC生成" if s.get("gen_prompt") else "原始采集"),
                 "生成提示词": s.get("gen_prompt", ""),
+                "负向提示词": s.get("negative_prompt", ""),
                 "文件路径": s.get("ref_image") or "",
                 "生成模型": s.get("gen_model", ""),
+                "出图状态": s.get("gen_status", "待出图"),
+                "一致性检查": s.get("consistency", "未检查"),
             }
             record_id = key_to_record.get(label)
             if record_id:
@@ -806,11 +825,6 @@ class FeishuBitable:
                 "title": _text_val(f.get("集名", "")),
                 "novel_chapter": _text_val(f.get("小说章节", "")),
                 "novel_text": _text_val(f.get("小说内容", "")),
-                "core_event": _text_val(f.get("核心事件", "")),
-                "characters": _text_val(f.get("出场角色", "")),
-                "prev_hook": _text_val(f.get("上集钩子", "")),
-                "end_hook": _text_val(f.get("结尾钩子", "")),
-                "scenes": _text_val(f.get("场次列表", "")),
                 "script": _text_val(f.get("完整剧本", "")),
                 "status": _text_val(f.get("状态", "待编写")),
                 "_record_id": rec["record_id"],
@@ -845,11 +859,6 @@ class FeishuBitable:
                 "集名": ep.get("title", ""),
                 "小说章节": ep.get("novel_chapter", ""),
                 "小说内容": ep.get("novel_text", ""),
-                "核心事件": ep.get("core_event", ""),
-                "出场角色": ep.get("characters", ""),
-                "上集钩子": ep.get("prev_hook", ""),
-                "结尾钩子": ep.get("end_hook", ""),
-                "场次列表": ep.get("scenes", ""),
                 "完整剧本": ep.get("script", ""),
                 "状态": ep.get("status", "待编写"),
             }
@@ -871,14 +880,19 @@ class FeishuBitable:
         tasks = []
         for rec in records:
             f = rec.get("fields", {})
+            prompt = _text_val(f.get("提示词", ""))
             name = _text_val(f.get("任务名"))
+            if not name:
+                # 只填提示词也能跑：任务名留空时从提示词派生
+                name = (prompt.strip().splitlines()[0][:20] if prompt.strip() else "")
             if not name:
                 continue
             tasks.append({
                 "name": name,
-                "prompt": _text_val(f.get("提示词", "")),
+                "prompt": prompt,
                 "model": _text_val(f.get("模型", "")),
                 "size": _text_val(f.get("分辨率", "")),
+                "ratio": _text_val(f.get("画面比例", "")) or "16:9",
                 "status": _text_val(f.get("状态", "待生成")),
                 "result_path": _text_val(f.get("结果路径", "")),
                 "notes": _text_val(f.get("备注", "")),
@@ -898,6 +912,7 @@ class FeishuBitable:
             "状态": task.get("status", ""),
             "结果路径": task.get("result_path") or "",
             "备注": task.get("notes") or "",
+            "画面比例": task.get("ratio") or "",
         }
         self.update_record(table_id, record_id, fields)
 

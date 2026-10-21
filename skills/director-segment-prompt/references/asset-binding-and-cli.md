@@ -101,9 +101,12 @@
 
 1. 读 `dependencies`，差分比对场景库：场景/视角缺失 → 调 `script-to-scene-assets` 补出（母版→主场景→局部，派生图须先有母版）；已有 description 但未出图 → 直接出图并过一致性检查。
 2. 读 `new_characters` → 调对应 skill 补角色档案和三视图。
-3. 素材就绪后，用户确认 → `python cli.py write $WS --table 剧本分镜表 --data '<shots JSON>'`
-4. 只读预览：`python cli.py expand $WS --shot ep10_p05`，检查：标记全部解析、锚点说明完整、正文无残留 `{}`、素材清单齐全。
-5. 用户确认后 → `python cli.py generate $WS --tts-only` → `python cli.py generate $WS` → `python cli.py push $WS`。
+3. **生产态资产闸门**：调任何模型前先跑 `python cli.py preflight $WS --episode N`，它逐条解析分镜里的 `{表：名}`，校验"文件存在 + 扩展名与内容格式一致"，0 问题才继续。`generate` 内置同一道闸门，未过直接拒绝、不产生调用。
+4. 素材就绪后，用户确认 → `python cli.py write $WS --table 剧本分镜表 --data '<shots JSON>'`
+5. 只读预览：`python cli.py expand $WS --shot ep10_p05`，检查：标记全部解析、锚点说明完整、正文无残留 `{}`、素材清单齐全。
+6. 用户确认后 → `python cli.py generate $WS --tts-only` → `python cli.py generate $WS` → `python cli.py push $WS`。
+
+> 预览态（资产未就绪）允许写分镜、跑 `expand` 试跑、评审，但不得进入第 6 步。
 
 ## 6. 成片时长与配音
 

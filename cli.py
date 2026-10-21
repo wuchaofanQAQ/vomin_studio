@@ -293,6 +293,7 @@ def _generate_scene(ws, scene, scenes_list):
     if paths:
         os.rename(paths[0], ws.abs(rel_path))
         scene["ref_image"] = rel_path
+        scene["gen_status"] = "已出图"
         scene.setdefault("source", "AIGC生成")
         ws.save_json("scenes.json", scenes_list)
         if ws.feishu:
@@ -307,20 +308,35 @@ def _generate_scene(ws, scene, scenes_list):
             _add_asset(ws, "场景参考图", label, rel_path, model, final_prompt)
 
 
+def _resolve_image_size(resolution: str, ratio: str) -> str:
+    """把「2K + 16:9」换算成具体像素；分辨率本身写了 1024x768 时原样使用。"""
+    r = (resolution or "").strip()
+    if re.fullmatch(r"\d+\s*[xX×]\s*\d+", r):
+        return r.replace(" ", "").replace("×", "x").replace("X", "x")
+    base = {"1K": 1024, "2K": 2048, "4K": 4096}.get(r.upper(), 2048)
+    if (ratio or "16:9").strip() == "9:16":
+        return f"{base * 9 // 16}x{base}"
+    return f"{base}x{base * 9 // 16}"
+
+
 def _generate_workbench_task(ws, task, tasks_list):
     """执行一条生图工作台任务。"""
     from vomin.ark.client import ArkClient
     from vomin.ark.image import ImageClient
 
-    prompt_template = task.get("prompt", "")
+    prompt_template = (task.get("prompt") or "").strip()
     if not prompt_template:
-        print(f"  跳过 {task['name']}: 未填写提示词")
+        print("  跳过：未填写提示词")
         return
+    if not task.get("name"):
+        task["name"] = prompt_template.splitlines()[0][:20]
 
     ark = ArkClient()
     image = ImageClient(ark)
-    model = task.get("model") or ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
-    size = task.get("size") or "2K"
+    default_model = ws.config.get("ark", {}).get("image_model", "doubao-seedream-5-0-flash-260915")
+    model = task.get("model") or default_model
+    ratio = task.get("ratio") or "16:9"
+    size = _resolve_image_size(task.get("size") or "2K", ratio)
 
     final_prompt, ref_images_abs, _, _, _ = ws.expand_prompt(prompt_template)
 
@@ -338,6 +354,7 @@ def _generate_workbench_task(ws, task, tasks_list):
             pass
 
     print(f"  模型: {model}")
+    print(f"  画面: {ratio} / {size}")
     print(f"  提示词: {final_prompt[:80]}...")
 
     from datetime import datetime
@@ -359,7 +376,6 @@ def _generate_workbench_task(ws, task, tasks_list):
                     ws.feishu.update_workbench_task(ws, task)
                 except Exception as e:
                     print(f"  飞书更新失败: {e}")
-                _add_asset(ws, "角色形象图", task["name"], rel_path, model, final_prompt)
             fsize = os.path.getsize(ws.abs(rel_path)) / 1024
             print(f"  已保存: {rel_path} ({fsize:.0f} KB)")
     except Exception as e:
@@ -575,6 +591,38 @@ def _scene_generate_order(view: str) -> int:
     return 3
 
 
+def _preflight_shots(ws, shots) -> list[str]:
+    """逐个分镜校验资产引用，返回问题列表。"""
+    problems = []
+    for shot in shots:
+        for p in ws.validate_asset_refs(shot.get("prompt", "")):
+            problems.append(f"{shot.get('shot_id', '?')}: {p}")
+    return problems
+
+
+def cmd_preflight(args):
+    """生产态前置校验：分镜引用的角色图/场景图是否真的存在且格式正确。"""
+    from vomin.workspace import Workspace
+
+    ws = resolve_workspace(args.workspace)
+    shots = ws.load_storyboard()
+    if args.episode is not None:
+        shots = [s for s in shots if str(s.get("episode")) == str(args.episode)]
+    if not shots:
+        print("没有分镜数据（先 write 分镜表或 pull）")
+        sys.exit(1)
+
+    print(f"资产前置校验：{len(shots)} 个分镜")
+    problems = _preflight_shots(ws, shots)
+    if problems:
+        print(f"\n✗ 未通过 {len(problems)} 项：")
+        for p in problems:
+            print(f"  - {p}")
+        print("\n预览可以继续，但禁止调用模型生成视频。")
+        sys.exit(1)
+    print("✓ 全部资产就绪，可进入生成")
+
+
 def cmd_generate(args):
     from vomin.workspace import Workspace
     ws = resolve_workspace(args.workspace)
@@ -582,7 +630,7 @@ def cmd_generate(args):
     if args.target:
         parts = args.target.split(":", 1)
         if len(parts) != 2:
-            print("--target 格式: 角色库:名 / 场景库:名 / 剧本分镜表:ID / 生图工作台:任务名")
+            print("--target 格式: 角色库:名 / 场景库:名 / 剧本分镜表:ID / 生图工作台:任务名或all")
             sys.exit(1)
         kind, target_id = parts
 
@@ -619,17 +667,34 @@ def cmd_generate(args):
             if not shot:
                 print(f"分镜表中找不到: {target_id}")
                 sys.exit(1)
+            if not args.tts_only:
+                problems = _preflight_shots(ws, [shot])
+                if problems:
+                    print("✗ 资产未就绪，已阻止生成视频：")
+                    for p in problems:
+                        print(f"  - {p}")
+                    sys.exit(1)
             print(f"=== 生成分镜: {target_id} ===")
             _generate_shot(ws, shot, shots, tts_only=args.tts_only)
 
         elif kind == "生图工作台":
             tasks = ws.load_workbench()
-            task = next((t for t in tasks if t["name"] == target_id), None)
-            if not task:
-                print(f"生图工作台中找不到: {target_id}")
-                sys.exit(1)
-            print(f"=== 工作台任务: {target_id} ===")
-            _generate_workbench_task(ws, task, tasks)
+            if target_id in ("all", "*", "全部"):
+                pending = [t for t in tasks if t.get("status") not in ("已完成", "已生成")]
+                if not pending:
+                    print("没有待生成的工作台任务")
+                    return
+                print(f"批量生成工作台任务: {len(pending)} 条")
+                for task in pending:
+                    print(f"\n=== {task.get('name') or '（无任务名）'} ===")
+                    _generate_workbench_task(ws, task, tasks)
+            else:
+                task = next((t for t in tasks if t.get("name") == target_id), None)
+                if not task:
+                    print(f"生图工作台中找不到: {target_id}")
+                    sys.exit(1)
+                print(f"=== 工作台任务: {target_id} ===")
+                _generate_workbench_task(ws, task, tasks)
 
         else:
             print(f"未知类型: {kind}，支持: 角色库 / 场景库 / 剧本分镜表 / 生图工作台")
@@ -641,11 +706,35 @@ def cmd_generate(args):
             print("没有待生成的分镜")
             return
         print(f"批量生成: {len(pending)} 个分镜" + (" (仅TTS)" if args.tts_only else ""))
+        if not args.tts_only:
+            problems = _preflight_shots(ws, pending)
+            if problems:
+                print("✗ 资产未就绪，已阻止生成视频：")
+                for p in problems:
+                    print(f"  - {p}")
+                sys.exit(1)
         for shot in pending:
             print(f"\n=== {shot['shot_id']} ===")
             _generate_shot(ws, shot, shots, tts_only=args.tts_only)
 
     print("\n生成完成。")
+
+
+def cmd_workbench(args):
+    """生图工作台批量出图：所有未完成的任务依次生成。"""
+    from vomin.workspace import Workspace
+
+    ws = resolve_workspace(args.workspace)
+    tasks = ws.load_workbench()
+    pending = [t for t in tasks if t.get("status") not in ("已完成", "已生成")]
+    if not pending:
+        print("没有待生成的工作台任务")
+        return
+    print(f"生图工作台开始工作：{len(pending)} 条待生成")
+    for task in pending:
+        print(f"\n=== {task.get('name') or '（无任务名）'} ===")
+        _generate_workbench_task(ws, task, tasks)
+    print("\n全部完成")
 
 
 def cmd_push(args):
@@ -984,14 +1073,20 @@ def main():
 
     p_gen = sub.add_parser("generate", help="生成素材（角色图/场景图/配音/视频）")
     p_gen.add_argument("workspace", help="workspace 目录路径")
-    p_gen.add_argument("--target", help="指定生成目标，格式: 角色库:名 / 场景库:名 / 剧本分镜表:ID / 生图工作台:任务名")
+    p_gen.add_argument("--target", help="指定生成目标，格式: 角色库:名 / 场景库:名 / 剧本分镜表:ID / 生图工作台:任务名或all")
     p_gen.add_argument("--tts-only", action="store_true", help="分镜只生成配音，不生成视频（省钱）")
 
+    p_pre = sub.add_parser("preflight", help="生产态前置校验：分镜引用的资产是否真的就绪")
+    p_pre.add_argument("workspace", help="workspace 目录路径")
+    p_pre.add_argument("--episode", type=int, default=None, help="只校验指定集")
     p_push = sub.add_parser("push", help="回写状态到飞书")
     p_push.add_argument("workspace", help="workspace 目录路径")
 
     p_pull = sub.add_parser("pull", help="从飞书拉取分镜到本地")
     p_pull.add_argument("workspace", help="workspace 目录路径")
+
+    p_wb = sub.add_parser("workbench", help="生图工作台：批量生成所有未完成任务")
+    p_wb.add_argument("workspace", help="workspace 目录路径或飞书 URL")
 
     p_expand = sub.add_parser("expand", help="预览提示词模板展开结果")
     p_expand.add_argument("workspace", help="workspace 目录路径")
@@ -1022,7 +1117,8 @@ def main():
 
     args = parser.parse_args()
     {"init": cmd_init, "init-from-url": cmd_init_from_url,
-     "status": cmd_status, "generate": cmd_generate,
+     "status": cmd_status, "generate": cmd_generate, "preflight": cmd_preflight,
+     "workbench": cmd_workbench,
      "push": cmd_push, "pull": cmd_pull, "expand": cmd_expand,
      "write": cmd_write, "read": cmd_read,
      "set-path": cmd_set_path, "migrate-schema": cmd_migrate_schema}[args.command](args)

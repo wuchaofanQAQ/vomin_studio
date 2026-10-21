@@ -305,14 +305,22 @@ class Workspace:
                 )
                 return ""
             collected = False
+            missing_paths = []
             for field in file_fields:
                 path_val = row.get(field)
-                if path_val and os.path.exists(self.abs(path_val)):
-                    _collect_file(kind, name, path_val)
-                    collected = True
-                    break
+                if not path_val:
+                    continue
+                if not os.path.exists(self.abs(path_val)):
+                    missing_paths.append(path_val)
+                    continue
+                _collect_file(kind, name, path_val)
+                collected = True
+                break
             if not collected and not errors:
-                errors.append(f"{{{kind}：{name}}} 对象存在但没有关联素材文件")
+                if missing_paths:
+                    errors.append(f"{{{kind}：{name}}} 素材文件不存在: {missing_paths[0]}")
+                else:
+                    errors.append(f"{{{kind}：{name}}} 对象存在但没有关联素材文件")
             return ""
 
         # 通用 {sheetName:rowId} / {sheetName：rowId}，中英文冒号均支持
@@ -322,6 +330,43 @@ class Workspace:
             raise ValueError("提示词引用解析失败:\n  " + "\n  ".join(errors))
 
         return text, ref_images, characters_found, scenes_found, ref_videos
+
+    def validate_asset_refs(self, prompt: str) -> list[str]:
+        """生产态前置校验：提示词里每个 {表：行} 引用是否真的能拿到可用素材。
+
+        返回问题列表（空 = 通过）。不抛异常，供 preflight / generate 前的闸门使用。
+        """
+        IMAGE_MAGIC = {
+            ".png": (b"\x89PNG\r\n\x1a\n",),
+            ".jpg": (b"\xff\xd8\xff",),
+            ".jpeg": (b"\xff\xd8\xff",),
+            ".webp": (b"RIFF",),
+        }
+        VIDEO_EXT = set(getattr(self, "VIDEO_EXTS", (".mp4", ".mov")))
+        problems: list[str] = []
+        try:
+            _, images, _, _, videos = self.expand_prompt(prompt)
+        except ValueError as e:
+            return [ln.strip() for ln in str(e).splitlines()[1:] if ln.strip()]
+
+        for path in images:
+            ext = os.path.splitext(path)[1].lower()
+            magic = IMAGE_MAGIC.get(ext)
+            if magic is None:
+                problems.append(f"不支持的图片扩展名 {ext}: {path}")
+                continue
+            try:
+                with open(path, "rb") as fh:
+                    head = fh.read(16)
+            except OSError as exc:
+                problems.append(f"读取失败 {path}: {exc}")
+                continue
+            if not any(head.startswith(m) for m in magic):
+                problems.append(f"文件格式与扩展名不符（内容不是 {ext}）: {path}")
+        for path in videos:
+            if not os.path.splitext(path)[1].lower() in VIDEO_EXT:
+                problems.append(f"不支持的视频扩展名: {path}")
+        return problems
 
     def update_budget(self, cost: float):
         budget = self._config.setdefault("budget", {"total_limit": 5000, "spent": 0})

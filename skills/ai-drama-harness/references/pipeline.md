@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|
 | ① | drama-initializer | 用户上传小说章节/剧本 | 剧本设定 + 角色库/角色档案（**不含剧本表**） | — | `init`（模式B）+ `write` 剧本设定/角色库/角色档案 |
 | ② | character-three-view-prompt | 角色档案+画风 | 三视图出图提示词 | `read --table 角色库` | `write --table 角色库`（gen_prompt）+ `generate` |
-| ③ | novel-to-script（逐集 B0a） | 本章小说 + 剧本设定 + 角色库 + 前一集 script | 剧本表一整行：小说章节 / 小说内容（原文）/ 完整剧本（转化后）/ 集名 / 核心事件 / 出场角色 / 上下集钩子 / 场次列表 | `read --table 剧本设定/角色库`、`read --table 剧本表 --episode N --context 1` | `write --table 剧本表` |
+| ③ | novel-to-script（逐集 B0a） | 本章小说 + 剧本设定 + 角色库 + 前一集 script | 剧本表一整行：小说章节 / 小说内容（原文）/ 完整剧本（转化后）/ 集名 / 状态 | `read --table 剧本设定/角色库`、`read --table 剧本表 --episode N --context 1` | `write --table 剧本表` |
 | ④ | script-to-scene-assets（逐集 B0b） | 当前集±1集 script + 当前集小说原文（`--with-novel`，补空间细节）+ 剧本设定 + 场景库 | 场景清单 + 图间关联表 + 空间锚点表 + 场景图提示词包（母版→主场景→局部/闪回/外景）；**只建文字资产**；出图后过一致性检查 | `read --table 剧本表 --episode N --context 1` + `--episode N --with-novel` + `剧本设定/场景库` | `write --table 场景库` + `generate`（懒加载） |
 | ⑤ | novel-to-character-assets（逐集 B0b） | 当前集小说原文（`--with-novel`，仅 N 集；无原文退回 script）+ 角色库 | 新角色识别 + 完整 8 模块档案 | `read --table 剧本表 --episode N --with-novel` + `剧本设定/角色库` | `write --table 角色库/角色档案`（新角色） |
 | ⑥ | director-segment-prompt（逐集 B1） | 当前集±1集 script + 角色 + 场景（含 description） | 分镜 + 依赖清单 + 视频提示词；**懒加载：只为本集用到的场景出图** | `read --table 剧本表 --episode N --context 1` + 角色库/角色档案/场景库/剧本设定 | `write --table 剧本分镜表 + `generate` |
@@ -69,7 +69,7 @@ Phase A 完成后进入逐集 Phase B，剧本表、场景空间设计和出图�
 对每一集 N：
   B0a: ③ novel-to-script（小说转剧本）
     read 剧本设定 + 角色库 + 剧本表 --episode N --context 1（取前一集承接，不含小说原文）
-    → 转化为结构化剧本，提取集名/核心事件/出场角色/上下集钩子/场次列表
+    → 转化为结构化剧本，提取集名（核心事件/出场角色/钩子/场次只在说明里给，不落表）
     → [轻量确认] → write 剧本表（小说章节/小说内容/完整剧本/…，status=草稿）
   B0b: ④ script-to-scene-assets + ⑤ novel-to-character-assets
     read 剧本表 --episode N --context 1 + 剧本设定 + 场景库 + 角色库
