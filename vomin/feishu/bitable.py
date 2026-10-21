@@ -71,11 +71,6 @@ class FeishuBitable:
                     {"name": "核心"}, {"name": "重要配角"}, {"name": "配角"}, {"name": "龙套"},
                 ]}},
                 {"field_name": "外貌描述", "type": 1},
-                {"field_name": "音色描述", "type": 1},
-                {"field_name": "音色Speaker", "type": 1},
-                {"field_name": "来源", "type": 3, "property": {"options": [
-                    {"name": "原始采集"}, {"name": "AIGC生成"}, {"name": "手动制作"},
-                ]}},
                 {"field_name": "生成提示词", "type": 1},
                 {"field_name": "文件路径", "type": 1},
                 {"field_name": "生成模型", "type": 1},
@@ -88,11 +83,11 @@ class FeishuBitable:
                 {"field_name": "场景类型", "type": 3, "property": {"options": [
                     {"name": "核心"}, {"name": "剧情"}, {"name": "临时"},
                 ]}},
+                {"field_name": "视角", "type": 1},
                 {"field_name": "场景描述", "type": 1},
+                {"field_name": "参考场景", "type": 1},
+                {"field_name": "作用关联", "type": 1},
                 {"field_name": "关联集数", "type": 1},
-                {"field_name": "分镜绑定状态", "type": 3, "property": {"options": [
-                    {"name": "未绑定"}, {"name": "已绑定"},
-                ]}},
                 {"field_name": "来源", "type": 3, "property": {"options": [
                     {"name": "原始采集"}, {"name": "AIGC生成"}, {"name": "手动制作"},
                 ]}},
@@ -130,10 +125,12 @@ class FeishuBitable:
                 {"field_name": "全局参考图路径", "type": 1},
             ],
         },
-        "剧集表": {
+        "剧本表": {
             "primary_rename": "集数",
             "fields": [
                 {"field_name": "集名", "type": 1},
+                {"field_name": "小说章节", "type": 1},
+                {"field_name": "小说内容", "type": 1},
                 {"field_name": "核心事件", "type": 1},
                 {"field_name": "出场角色", "type": 1},
                 {"field_name": "上集钩子", "type": 1},
@@ -141,7 +138,8 @@ class FeishuBitable:
                 {"field_name": "场次列表", "type": 1},
                 {"field_name": "完整剧本", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
-                    {"name": "待编写"}, {"name": "草稿"}, {"name": "已确认"}, {"name": "已拆分镜"},
+                    {"name": "待转剧本"}, {"name": "待编写"}, {"name": "草稿"},
+                    {"name": "已确认"}, {"name": "已拆分镜"},
                 ]}},
             ],
         },
@@ -504,12 +502,9 @@ class FeishuBitable:
                 "name": name,
                 "char_type": _text_val(f.get("角色类型", "")),
                 "appearance": _text_val(f.get("外貌描述", "")),
-                "voice_desc": _text_val(f.get("音色描述", "")),
-                "speaker": _text_val(f.get("音色Speaker")) or None,
                 "ref_image": _text_val(f.get("文件路径")) or None,
                 "gen_prompt": _text_val(f.get("生成提示词", "")),
                 "gen_model": _text_val(f.get("生成模型")) or None,
-                "source": _text_val(f.get("来源", "")),
                 "_record_id": rec["record_id"],
             })
         ws.save_json("characters.json", chars)
@@ -562,8 +557,9 @@ class FeishuBitable:
                 "view_angle": _text_val(f.get("视角", "")) or "全景基准图（默认）",
                 "scene_type": _text_val(f.get("场景类型", "")),
                 "description": _text_val(f.get("场景描述", "")),
+                "ref_scenes": _text_val(f.get("参考场景", "")),
+                "relation_note": _text_val(f.get("作用关联", "")),
                 "related_episodes": _text_val(f.get("关联集数", "")),
-                "bind_status": _text_val(f.get("分镜绑定状态", "")),
                 "ref_image": _text_val(f.get("文件路径")) or None,
                 "gen_prompt": _text_val(f.get("生成提示词", "")),
                 "gen_model": _text_val(f.get("生成模型")) or None,
@@ -583,9 +579,6 @@ class FeishuBitable:
             "角色名": char.get("name", ""),
             "角色类型": char.get("char_type", ""),
             "外貌描述": char.get("appearance", ""),
-            "音色描述": char.get("voice_desc", ""),
-            "音色Speaker": char.get("speaker") or "",
-            "来源": char.get("source", ""),
             "生成提示词": char.get("gen_prompt", ""),
             "文件路径": char.get("ref_image") or "",
             "生成模型": char.get("gen_model") or "",
@@ -600,10 +593,12 @@ class FeishuBitable:
             return
         fields = {
             "场景名": scene.get("name", ""),
+            "视角": scene.get("view_angle", "全景基准图（默认）"),
             "场景类型": scene.get("scene_type", ""),
             "场景描述": scene.get("description", ""),
+            "参考场景": scene.get("ref_scenes", ""),
+            "作用关联": scene.get("relation_note", ""),
             "关联集数": scene.get("related_episodes", ""),
-            "分镜绑定状态": scene.get("bind_status", ""),
             "来源": scene.get("source", ""),
             "生成提示词": scene.get("gen_prompt", ""),
             "文件路径": scene.get("ref_image") or "",
@@ -660,9 +655,6 @@ class FeishuBitable:
                 "角色名": c.get("name", ""),
                 "角色类型": c.get("char_type", ""),
                 "外貌描述": c.get("appearance", ""),
-                "音色描述": c.get("voice_desc", ""),
-                "音色Speaker": c.get("speaker") or "",
-                "来源": c.get("source", "AIGC生成") if c.get("ref_image") else "原始采集",
                 "生成提示词": c.get("gen_prompt", ""),
                 "文件路径": c.get("ref_image") or "",
                 "生成模型": c.get("gen_model", ""),
@@ -742,10 +734,12 @@ class FeishuBitable:
             fields = {
                 "场景ID": label,
                 "场景名": s.get("name", ""),
+                "视角": view_angle,
                 "场景类型": s.get("scene_type", ""),
                 "场景描述": s.get("description", ""),
+                "参考场景": s.get("ref_scenes", ""),
+                "作用关联": s.get("relation_note", ""),
                 "关联集数": s.get("related_episodes", ""),
-                "分镜绑定状态": s.get("bind_status", ""),
                 "来源": s.get("source", "AIGC生成") if s.get("ref_image") else "原始采集",
                 "生成提示词": s.get("gen_prompt", ""),
                 "文件路径": s.get("ref_image") or "",
@@ -795,8 +789,8 @@ class FeishuBitable:
                 print(f"  飞书创建设定: {s['name']}")
 
     def pull_episodes(self, ws) -> list[dict]:
-        """从飞书剧集表拉取到本地 episodes.json，返回剧集列表。"""
-        table_id = self._table_id(ws, "剧集表", "FEISHU_TABLE_EPISODE")
+        """从飞书剧本表拉取到本地 episodes.json，返回剧本列表。"""
+        table_id = self._table_id(ws, "剧本表", "FEISHU_TABLE_EPISODE")
         if not table_id:
             return ws.load_json("episodes.json")
 
@@ -810,6 +804,8 @@ class FeishuBitable:
             episodes.append({
                 "episode": ep_num,
                 "title": _text_val(f.get("集名", "")),
+                "novel_chapter": _text_val(f.get("小说章节", "")),
+                "novel_text": _text_val(f.get("小说内容", "")),
                 "core_event": _text_val(f.get("核心事件", "")),
                 "characters": _text_val(f.get("出场角色", "")),
                 "prev_hook": _text_val(f.get("上集钩子", "")),
@@ -821,19 +817,19 @@ class FeishuBitable:
             })
         episodes.sort(key=lambda e: e["episode"])
         ws.save_json("episodes.json", episodes)
-        print(f"  已从飞书拉取 {len(episodes)} 条剧集到本地")
+        print(f"  已从飞书拉取 {len(episodes)} 条剧本到本地")
         return episodes
 
     def push_episodes(self, ws):
-        """把本地 episodes.json 同步到飞书剧集表。用集数做匹配键。"""
-        table_id = self._table_id(ws, "剧集表", "FEISHU_TABLE_EPISODE")
+        """把本地 episodes.json 同步到飞书剧本表。用集数做匹配键。"""
+        table_id = self._table_id(ws, "剧本表", "FEISHU_TABLE_EPISODE")
         if not table_id:
-            print("  未配置剧集表，跳过")
+            print("  未配置剧本表，跳过")
             return
 
         episodes = ws.load_json("episodes.json")
         if not episodes:
-            print("  本地无剧集数据")
+            print("  本地无剧本数据")
             return
 
         existing = self.list_records(table_id)
@@ -847,6 +843,8 @@ class FeishuBitable:
             fields = {
                 "集数": ep.get("episode", ""),
                 "集名": ep.get("title", ""),
+                "小说章节": ep.get("novel_chapter", ""),
+                "小说内容": ep.get("novel_text", ""),
                 "核心事件": ep.get("core_event", ""),
                 "出场角色": ep.get("characters", ""),
                 "上集钩子": ep.get("prev_hook", ""),
@@ -858,10 +856,10 @@ class FeishuBitable:
             record_id = ep_to_record.get(ep["episode"])
             if record_id:
                 self.update_record(table_id, record_id, fields)
-                print(f"  飞书更新剧集: {ep['episode']}")
+                print(f"  飞书更新剧本: {ep['episode']}")
             else:
                 self.create_record(table_id, fields)
-                print(f"  飞书创建剧集: {ep['episode']}")
+                print(f"  飞书创建剧本: {ep['episode']}")
 
     def pull_workbench(self, ws) -> list[dict]:
         """从飞书生图工作台拉取到本地 workbench.json，返回任务列表。"""
@@ -971,6 +969,105 @@ class FeishuBitable:
         ws.save_json("settings.json", settings)
         print(f"  已从飞书拉取 {len(settings)} 条设定到本地")
         return settings
+
+    # ------ 表结构迁移：剧集表 → 剧本表 + 新字段 ------
+    def plan_schema_migration(self) -> dict:
+        """只读：对比线上表结构与 TABLE_SCHEMA，返回迁移计划，不做任何写入。
+
+        返回 {
+          "rename": (旧表名, 新表名) | None,
+          "table_ids": {表名: table_id},
+          "add_fields": {表名: [field_def, ...]},
+          "move_rows": 需要把「完整剧本」挪到「小说内容」的行数,
+        }
+        """
+        h = self._headers()
+        base = f"bitable/v1/apps/{self.app_token}"
+        tables = self.discover_tables()
+        plan = {"rename": None, "table_ids": {}, "add_fields": {}, "move_rows": 0}
+
+        if "剧集表" in tables and "剧本表" not in tables:
+            plan["rename"] = ("剧集表", "剧本表")
+            tables["剧本表"] = tables["剧集表"]
+        plan["table_ids"] = tables
+
+        for tname in ("剧本表", "场景库"):
+            tid = tables.get(tname)
+            if not tid:
+                continue
+            resp = requests.get(self._api(f"{base}/tables/{tid}/fields"), headers=h, timeout=15)
+            resp.raise_for_status()
+            have = {f["field_name"] for f in resp.json().get("data", {}).get("items", [])}
+            missing = [fd for fd in self.TABLE_SCHEMA[tname]["fields"]
+                       if fd["field_name"] not in have]
+            if missing:
+                plan["add_fields"][tname] = missing
+
+        tid = tables.get("剧本表")
+        if tid:
+            for rec in self.list_records(tid):
+                f = rec.get("fields", {})
+                if _text_val(f.get("完整剧本")) and not _text_val(f.get("小说内容")):
+                    plan["move_rows"] += 1
+        return plan
+
+    def apply_schema_migration(self, plan: dict) -> None:
+        """执行迁移（写入操作，须在用户确认后调用）。幂等：已完成的步骤自动跳过。"""
+        h = self._headers()
+        base = f"bitable/v1/apps/{self.app_token}"
+        tables = plan["table_ids"]
+
+        if plan["rename"]:
+            old, new = plan["rename"]
+            r = requests.patch(self._api(f"{base}/tables/{tables[old]}"),
+                               headers=h, json={"name": new}, timeout=15)
+            r.raise_for_status()
+            if r.json().get("code") != 0:
+                raise RuntimeError(f"飞书表改名失败: {r.json().get('msg')}")
+            print(f"  已改名: {old} → {new}")
+
+        for tname, fields in plan["add_fields"].items():
+            for fd in fields:
+                r = requests.post(self._api(f"{base}/tables/{tables[tname]}/fields"),
+                                  headers=h, json=fd, timeout=15)
+                r.raise_for_status()
+                if r.json().get("code") != 0:
+                    raise RuntimeError(f"飞书新增字段失败 {tname}.{fd['field_name']}: {r.json().get('msg')}")
+                print(f"  已新增字段: {tname}.{fd['field_name']}")
+                time.sleep(0.1)
+
+        # 状态是单选，新增选项「待转剧本」需更新字段定义
+        tid = tables.get("剧本表")
+        if tid:
+            r = requests.get(self._api(f"{base}/tables/{tid}/fields"), headers=h, timeout=15)
+            r.raise_for_status()
+            for f in r.json().get("data", {}).get("items", []):
+                if f["field_name"] != "状态":
+                    continue
+                names = {o["name"] for o in f.get("property", {}).get("options", [])}
+                if "待转剧本" not in names:
+                    options = [{"name": o["name"]} for o in f.get("property", {}).get("options", [])]
+                    options.insert(0, {"name": "待转剧本"})
+                    ur = requests.put(self._api(f"{base}/tables/{tid}/fields/{f['field_id']}"),
+                                      headers=h,
+                                      json={"field_name": "状态", "type": 3,
+                                            "property": {"options": options}},
+                                      timeout=15)
+                    ur.raise_for_status()
+                    print("  已补状态选项: 待转剧本")
+
+            moved = 0
+            for rec in self.list_records(tid):
+                f = rec.get("fields", {})
+                old_script = _text_val(f.get("完整剧本"))
+                if old_script and not _text_val(f.get("小说内容")):
+                    self.update_record(tid, rec["record_id"], {
+                        "小说内容": old_script,
+                        "完整剧本": "",
+                        "状态": "待转剧本",
+                    })
+                    moved += 1
+            print(f"  已迁移 {moved} 行：完整剧本 → 小说内容（状态置「待转剧本」）")
 
 
 def _text_val(v) -> str:

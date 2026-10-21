@@ -1,6 +1,6 @@
 # Vomin Studio — AI 短剧生产底座
 
-本项目是 AI 短剧生产流水线：6 个 skill + CLI 执行层 + 飞书多维表格。输入为用户上传的剧本。
+本项目是 AI 短剧生产流水线：9 个 skill + CLI 执行层 + 飞书多维表格。输入为用户上传的小说章节或剧本。
 
 ## 快速上手
 
@@ -20,11 +20,12 @@
 | Skill | 路径 | 触发词 |
 |---|---|---|
 | ai-drama-harness | `skills/ai-drama-harness/SKILL.md` | 飞书链接+上传剧本、剧本初始化 |
-| drama-initializer | `skills/drama-initializer/SKILL.md` | 剧本初始化、导入剧本、上传剧本 |
+| drama-initializer | `skills/drama-initializer/SKILL.md` | 剧本初始化、导入剧本、导入小说、上传剧本 |
+| novel-to-script | `skills/novel-to-script/SKILL.md` | 小说转剧本、转化小说章节、改编小说 |
 | character-three-view-prompt | `skills/character-three-view-prompt/SKILL.md` | 出角色三视图 |
-| drama-episode-analyzer | `skills/drama-episode-analyzer/SKILL.md` | 逐集预分析、场景空间设计 |
-| scene-image-prompt | `skills/scene-image-prompt/SKILL.md` | 出场景空镜 |
-| storyboard-prompt | `skills/storyboard-prompt/SKILL.md` | 拆分镜、分镜脚本、视频提示词、CLIP |
+| script-to-scene-assets | `skills/script-to-scene-assets/SKILL.md` | 剧本抽场景、场景图提示词、母版/主场景/局部、图间关联 |
+| novel-to-character-assets | `skills/novel-to-character-assets/SKILL.md` | 小说抽角色、新角色识别、补角色档案 |
+| director-segment-prompt | `skills/director-segment-prompt/SKILL.md` | 拆分镜、分镜脚本、视频提示词、CLIP、导演级分段提示词 |
 
 ## 使用规则
 

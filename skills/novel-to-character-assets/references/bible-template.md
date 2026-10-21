@@ -11,7 +11,7 @@
 - 性别
 - 关系定位（与主角/其他角色的关系）
 
-> 消费方：harness 编排、storyboard-prompt。
+> 消费方：harness 编排、director-segment-prompt。
 
 ## B. 风格层（一致性基调，★ 必须与剧本匹配）
 
@@ -59,7 +59,7 @@
 - 弱点 / 软肋
 - 说话风格（简短/话痨/阴阳怪气…）
 
-> 消费方：storyboard-prompt（角色演出与对白不 OOC）。
+> 消费方：director-segment-prompt（角色演出与对白不 OOC）。
 
 ## F. 战斗层（打斗/特效用，★ 动作戏专用）
 
@@ -80,7 +80,7 @@
 - **经典台词**：口头禅 / 金句 / 标志性台词（含语气）
 - **标志性道具**：随身物件（如有）
 
-> 消费方：storyboard-prompt（台词、动作、道具）、视频特效。
+> 消费方：director-segment-prompt（台词、动作、道具）、视频特效。
 
 ## H. 标注与交接
 
@@ -90,6 +90,6 @@
 
 **交接映射**：
 - 外貌(D) + 风格(B) → `character-three-view-prompt`
-- 性格(E) + 台词(G) → `storyboard-prompt`（分镜演出与台词）
-- 战斗(F) + 特效(F) → `storyboard-prompt`（打斗/特效镜头）、视频生成
+- 性格(E) + 台词(G) → `director-segment-prompt`（分镜演出与台词）
+- 战斗(F) + 特效(F) → `director-segment-prompt`（打斗/特效镜头）、视频生成
 - 音色(C) → 配音/TTS

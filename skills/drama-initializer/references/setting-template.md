@@ -51,7 +51,7 @@
 - **质感关键词**：真实皮肤质感 / 干净线条 / 纸张质感…
 - **参考画面**：1~2 部对标作品的具体视觉方向
 
-> 此节直接喂给 `character-three-view-prompt` 和 `scene-image-prompt` 的画风词表，务必写清。
+> 此节直接喂给 `character-three-view-prompt` 和 `script-to-scene-assets` 的画风词表，务必写清。
 
 ### 9. 音乐与声音基调（可选）
 - 配乐风格、环境声方向

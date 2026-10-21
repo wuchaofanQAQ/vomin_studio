@@ -156,9 +156,9 @@ def cmd_init(args):
     print()
     print("下一步（drama-initializer 产出确认后）:")
     print(f"  1. python cli.py write {ws.root} --table 剧本设定 --data @settings.json")
-    print(f"  2. python cli.py write {ws.root} --table 剧集表 --data @episodes.json")
-    print(f"  3. python cli.py write {ws.root} --table 角色库 --data @characters.json")
-    print(f"  4. python cli.py write {ws.root} --table 角色档案 --data @bibles.json")
+    print(f"  2. python cli.py write {ws.root} --table 角色库 --data @characters.json")
+    print(f"  3. python cli.py write {ws.root} --table 角色档案 --data @bibles.json")
+    print(f"  4. 逐集：novel-to-script 转剧本后 write --table 剧本表（见 harness B0a）")
     print(f"  5. python cli.py push {ws.root}")
 
 
@@ -374,45 +374,80 @@ def _generate_workbench_task(ws, task, tasks_list):
         print(f"  生成失败: {e}")
 
 
+_TIMELINE_RE = re.compile(r"\s*(\d+):(\d+)\s*[-–—~]\s*(\d+):(\d+)")
+_DIALOGUE_LINE_RE = re.compile(r"^\s*([^：:\n]{1,20}?)\s*[：:]\s*(.+?)\s*$")
+MAX_SHOT_SECONDS = 30
+
+
+def _shot_duration(shot, default):
+    """成片时长取分段 timeline（如 00:00-00:20）的真实秒数，上限 30 秒；解析不出则用配置默认值。"""
+    m = _TIMELINE_RE.match(shot.get("timeline") or "")
+    if m:
+        span = (int(m[3]) * 60 + int(m[4])) - (int(m[1]) * 60 + int(m[2]))
+        if span > 0:
+            return min(span, MAX_SHOT_SECONDS)
+    return default
+
+
+def _dialogue_lines(shot, fallback_speaker):
+    """把分镜 dialogue 拆成 [(说话人, 台词)]；无「角色：」前缀的行归给 fallback_speaker。"""
+    lines = []
+    for raw in (shot.get("dialogue") or "").splitlines():
+        if not raw.strip():
+            continue
+        m = _DIALOGUE_LINE_RE.match(raw)
+        if m:
+            speaker = re.sub(r"[（(].*?[）)]", "", m[1]).strip() or fallback_speaker
+            lines.append((speaker, m[2]))
+        else:
+            lines.append((fallback_speaker, raw.strip()))
+    return lines
+
+
 def _generate_shot(ws, shot, shots_list, *, tts_only=False):
     """生成单个分镜的配音和/或视频。"""
     import base64 as b64
     from vomin.tts.doubao import DoubaoTTS
 
     cfg = ws.config
-    characters = ws.load_characters()
-    char_map = {c["name"]: c for c in characters}
+    bible_map = {b["name"]: b for b in ws.load_character_bibles()}
     ep = shot["episode"]
     shot_id = shot["shot_id"]
 
-    # --- TTS 配音 ---
+    # --- TTS 配音：按对白每行的说话人，从角色档案取音色描述 ---
     if shot.get("dialogue"):
         _, _, prompt_chars, _, _ = ws.expand_prompt(shot.get("prompt", ""))
-        char_name = prompt_chars[0] if prompt_chars else "旁白"
-        char = char_map.get(char_name, {})
-        voice_desc = char.get("voice_desc", "青年，普通话标准")
-        text_prompt = f'{char_name}（{voice_desc}）说道："{shot["dialogue"]}"'
+        fallback = shot.get("speaker") or (prompt_chars[0] if prompt_chars else "旁白")
+        lines = _dialogue_lines(shot, fallback)
 
-        audio_rel = f"ep{ep:02d}/audio/{shot_id}.mp3"
-        if shot.get("audio_path"):
-            bak = ws.backup(shot["audio_path"])
+        for old_rel in filter(None, (shot.get("audio_path") or "").split(";")):
+            bak = ws.backup(old_rel)
             if bak:
                 print(f"  备份旧配音: {bak}")
 
-        os.makedirs(os.path.dirname(ws.abs(audio_rel)), exist_ok=True)
-        print(f"  TTS: {text_prompt[:50]}...")
         tts = DoubaoTTS()
         tts_cfg = cfg.get("tts", {})
-        result = tts.create_to_file(
-            text_prompt, ws.abs(audio_rel),
-            model=tts_cfg.get("model", "seed-audio-1.0"),
-            fmt=tts_cfg.get("format", "mp3"),
-            sample_rate=tts_cfg.get("sample_rate", 48000),
-            speaker=char.get("speaker"),
-        )
-        shot["audio_path"] = audio_rel
-        duration = result.get("original_duration", 0)
-        print(f"  配音完成: {audio_rel} ({duration:.1f}s)")
+        audio_rels = []
+        for idx, (speaker_name, text) in enumerate(lines, 1):
+            bible = bible_map.get(speaker_name)
+            if bible is None or not bible.get("voice_desc"):
+                print(f"  警告: 角色档案中找不到「{speaker_name}」的音色描述，使用默认音色")
+                bible = bible or {}
+            voice_desc = bible.get("voice_desc") or "青年，普通话标准"
+            text_prompt = f'{speaker_name}（{voice_desc}）说道："{text}"'
+
+            audio_rel = f"ep{ep:02d}/audio/{shot_id}_{idx:02d}.mp3"
+            os.makedirs(os.path.dirname(ws.abs(audio_rel)), exist_ok=True)
+            print(f"  TTS[{idx}/{len(lines)}]: {text_prompt[:50]}...")
+            result = tts.create_to_file(
+                text_prompt, ws.abs(audio_rel),
+                model=tts_cfg.get("model", "seed-audio-1.0"),
+                fmt=tts_cfg.get("format", "mp3"),
+                sample_rate=tts_cfg.get("sample_rate", 48000),
+            )
+            audio_rels.append(audio_rel)
+            print(f"  配音完成: {audio_rel} ({result.get('original_duration', 0):.1f}s)")
+        shot["audio_path"] = ";".join(audio_rels)
 
     # --- 视频生成 ---
     if not tts_only:
@@ -465,9 +500,11 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
             })
             print(f"  参考视频: {ws.rel(vid_path)}")
 
-        audio_abs = ws.abs(shot["audio_path"]) if shot.get("audio_path") else None
         has_audio_ref = False
-        if audio_abs and os.path.exists(audio_abs):
+        for audio_rel in filter(None, (shot.get("audio_path") or "").split(";")):
+            audio_abs = ws.abs(audio_rel)
+            if not os.path.exists(audio_abs):
+                continue
             with open(audio_abs, "rb") as af:
                 audio_b64 = b64.b64encode(af.read()).decode()
             content.append({
@@ -476,12 +513,14 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
                 "role": "reference_audio",
             })
             has_audio_ref = True
-            print(f"  参考音频: {shot['audio_path']}")
+            print(f"  参考音频: {audio_rel}")
 
         video_rel = f"ep{ep:02d}/video/{shot_id}.mp4"
         os.makedirs(os.path.dirname(ws.abs(video_rel)), exist_ok=True)
 
         ark_cfg = cfg.get("ark", {})
+        duration = _shot_duration(shot, ark_cfg.get("default_duration", 5))
+        print(f"  成片时长: {duration} 秒")
         shot["status"] = "生成中"
         ws.save_storyboard(shots_list)
         if ws.feishu:
@@ -503,13 +542,13 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
                 save_path=ws.abs(video_rel),
                 resolution=ark_cfg.get("default_resolution", "720p"),
                 ratio=ark_cfg.get("default_ratio", "9:16"),
-                duration=ark_cfg.get("default_duration", 5),
+                duration=duration,
                 generate_audio=has_audio_ref,
             )
             shot["video_path"] = video_rel
             shot["task_id"] = task.get("id")
             shot["status"] = "待审核"
-            cost = ark_cfg.get("default_duration", 5) * 0.6
+            cost = duration * 0.6
             ws.update_budget(cost)
             print(f"  视频完成: {video_rel} (预估 {cost:.1f} 元)")
         except Exception as e:
@@ -525,6 +564,15 @@ def _generate_shot(ws, shot, shots_list, *, tts_only=False):
             ws.feishu.update_shot(ws, shot)
         except Exception:
             pass
+
+
+def _scene_generate_order(view: str) -> int:
+    """场景出图顺序：母版 → 主场景 → 局部 → 其他（闪回/外景/全景基准图）。"""
+    view = view or ""
+    for i, prefix in enumerate(("母版", "主场景", "局部")):
+        if view.startswith(prefix):
+            return i
+    return 3
 
 
 def cmd_generate(args):
@@ -558,6 +606,8 @@ def cmd_generate(args):
             if not matched:
                 print(f"场景库中找不到: {target_id}")
                 sys.exit(1)
+            # 母版 → 主场景 → 局部 → 闪回/外景：派生图的参考图句引用母版，母版须先出图
+            matched.sort(key=lambda s: _scene_generate_order(s.get("view_angle", "")))
             for scene in matched:
                 label = f"{scene['name']}·{scene.get('view_angle', '全景基准图（默认）')}"
                 print(f"=== 生成场景: {label} ===")
@@ -614,7 +664,7 @@ def cmd_push(args):
     ws.feishu.push_scenes(ws)
     print("\n[剧本设定]")
     ws.feishu.push_settings(ws)
-    print("\n[剧集表]")
+    print("\n[剧本表]")
     ws.feishu.push_episodes(ws)
     print("\n[角色档案]")
     ws.feishu.push_character_bibles(ws)
@@ -640,7 +690,7 @@ def cmd_pull(args):
     shots = ws.feishu.pull_storyboard(ws)
     print("\n[剧本设定]")
     settings = ws.feishu.pull_settings(ws)
-    print("\n[剧集表]")
+    print("\n[剧本表]")
     episodes = ws.feishu.pull_episodes(ws)
     print(f"  {len(episodes)} 条剧集")
     print("\n[角色档案]")
@@ -694,7 +744,7 @@ def cmd_init_from_url(args):
     for pull_method, label in [
         ("pull_characters", "角色库"), ("pull_scenes", "场景库"),
         ("pull_settings", "剧本设定"), ("pull_storyboard", "剧本分镜表"),
-        ("pull_episodes", "剧集表"), ("pull_character_bibles", "角色档案"),
+        ("pull_episodes", "剧本表"), ("pull_character_bibles", "角色档案"),
     ]:
         try:
             data = getattr(feishu, pull_method)(ws)
@@ -726,7 +776,7 @@ def cmd_write(args):
     match_keys = {
         "角色库": "name", "场景库": "name", "剧本设定": "name",
         "剧本分镜表": "shot_id", "生图工作台": "name", "素材库": "name",
-        "剧集表": "episode", "角色档案": "name",
+        "剧本表": "episode", "角色档案": "name",
     }
     mk = match_keys.get(table)
     if not mk:
@@ -737,18 +787,24 @@ def cmd_write(args):
         "角色库": "characters.json", "场景库": "scenes.json",
         "剧本设定": "settings.json", "剧本分镜表": "storyboard.json",
         "生图工作台": "workbench.json", "素材库": "assets.json",
-        "剧集表": "episodes.json", "角色档案": "character_bibles.json",
+        "剧本表": "episodes.json", "角色档案": "character_bibles.json",
     }
     json_file = json_files[table]
     existing = ws.load_json(json_file)
-    existing_map = {r.get(mk): r for r in existing if r.get(mk)}
+    def _row_key(r):
+        # 场景库同一空间有母版/主场景/局部多行，主键是 name + view_angle
+        if table == "场景库" and r.get(mk):
+            return f"{r.get(mk)}·{r.get('view_angle') or '全景基准图（默认）'}"
+        return r.get(mk)
+
+    existing_map = {_row_key(r): r for r in existing if r.get(mk)}
 
     updated, created = 0, 0
     for row in data:
-        key = row.get(mk)
-        if not key:
+        if not row.get(mk):
             print(f"  跳过: 缺少 {mk} 字段")
             continue
+        key = _row_key(row)
         if key in existing_map:
             existing_map[key].update(row)
             updated += 1
@@ -764,7 +820,7 @@ def cmd_write(args):
         push_methods = {
             "角色库": "push_characters", "场景库": "push_scenes",
             "剧本设定": "push_settings", "剧本分镜表": "push_storyboard",
-            "剧集表": "push_episodes", "角色档案": "push_character_bibles",
+            "剧本表": "push_episodes", "角色档案": "push_character_bibles",
         }
         push_method = push_methods.get(table)
         if push_method:
@@ -786,7 +842,7 @@ def cmd_read(args):
         "角色库": ws.load_characters, "场景库": ws.load_scenes,
         "剧本设定": ws.load_settings, "剧本分镜表": ws.load_storyboard,
         "生图工作台": ws.load_workbench, "素材库": ws.load_assets,
-        "剧集表": ws.load_episodes, "角色档案": ws.load_character_bibles,
+        "剧本表": ws.load_episodes, "角色档案": ws.load_character_bibles,
     }
     loader = loaders.get(table)
     if not loader:
@@ -795,9 +851,9 @@ def cmd_read(args):
 
     data = loader()
 
-    # 按集数过滤（剧集表 / 剧本分镜表）：拆分镜时只读当前集 ± 相邻集，
+    # 按集数过滤（剧本表 / 剧本分镜表）：拆分镜时只读当前集 ± 相邻集，
     # 禁止一次性读入全部剧集原文，避免上下文膨胀
-    if args.episode is not None and table in ("剧集表", "剧本分镜表"):
+    if args.episode is not None and table in ("剧本表", "剧本分镜表"):
         def _ep_num(rec):
             try:
                 return int(rec.get("episode"))
@@ -813,7 +869,11 @@ def cmd_read(args):
         else:
             print(f"[过滤] 仅第 {args.episode} 集（实际 {len(data)} 条）", file=sys.stderr)
     elif args.episode is not None:
-        print(f"--episode/--context 仅支持剧集表、剧本分镜表，已忽略", file=sys.stderr)
+        print(f"--episode/--context 仅支持剧本表、剧本分镜表，已忽略", file=sys.stderr)
+
+    # 剧本表默认剔除小说原文：拆分镜/抽场景只需转化后的 script，读 N±1 三集小说原文会撑爆上下文
+    if table == "剧本表" and not getattr(args, "with_novel", False):
+        data = [{k: v for k, v in r.items() if k != "novel_text"} for r in data]
 
     print(_json.dumps(data, ensure_ascii=False, indent=2))
 
@@ -861,6 +921,49 @@ def cmd_expand(args):
         print()
 
 
+def cmd_migrate_schema(args):
+    """存量飞书表迁移：剧集表→剧本表，补小说章节/小说内容与场景库新字段。
+
+    --dry-run 只读，打印计划；不带则执行写入（须先在对话里列清单并拿到用户确认）。
+    """
+    ws = resolve_workspace(args.workspace)
+    if not ws.feishu:
+        print("未配置飞书（缺少 app_token 或 FEISHU_APP_ID/SECRET 凭据），无法迁移")
+        sys.exit(1)
+
+    plan = ws.feishu.plan_schema_migration()
+
+    print("[迁移计划]")
+    if plan["rename"]:
+        print(f"  1. 表改名: {plan['rename'][0]} → {plan['rename'][1]}")
+    else:
+        print("  1. 表改名: 无需（已是「剧本表」或不存在「剧集表」）")
+    if plan["add_fields"]:
+        for tname, fields in plan["add_fields"].items():
+            print(f"  2. {tname} 新增字段: {', '.join(f['field_name'] for f in fields)}")
+    else:
+        print("  2. 新增字段: 无需")
+    print(f"  3. 完整剧本 → 小说内容（并置状态「待转剧本」）: {plan['move_rows']} 行")
+    print("  4. 本地 workspace.yaml: 将 feishu.tables 的「剧集表」键改为「剧本表」")
+
+    if args.dry_run:
+        print("\n--dry-run：以上为计划，未执行任何写入")
+        return
+
+    nothing = (not plan["rename"] and not plan["add_fields"] and plan["move_rows"] == 0)
+    ws.feishu.apply_schema_migration(plan)
+
+    tables_cfg = ws.config.get("feishu", {}).setdefault("tables", {})
+    if "剧集表" in tables_cfg and "剧本表" not in tables_cfg:
+        tables_cfg["剧本表"] = tables_cfg.pop("剧集表")
+        ws.save_config()
+        print("  已更新本地 workspace.yaml: 剧集表 → 剧本表")
+    elif nothing:
+        print("\n无需迁移，已是最新结构")
+    ws.invalidate_cache()
+    print("\n迁移完成")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Vomin Studio — AI 短剧制作流水线")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -896,7 +999,7 @@ def main():
 
     p_write = sub.add_parser("write", help="写入数据到指定表（JSON upsert）")
     p_write.add_argument("workspace", help="workspace 目录路径")
-    p_write.add_argument("--table", required=True, help="目标表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧集表/生图工作台/素材库）")
+    p_write.add_argument("--table", required=True, help="目标表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧本表/生图工作台/素材库）")
     p_write.add_argument("--data", required=True, help="JSON 数据字符串，或 @文件路径")
 
     p_setpath = sub.add_parser("set-path", help="把当前本地 workspace 路径写回飞书系统设置")
@@ -904,18 +1007,25 @@ def main():
 
     p_read = sub.add_parser("read", help="读取指定表数据并输出 JSON")
     p_read.add_argument("workspace", help="workspace 目录路径")
-    p_read.add_argument("--table", required=True, help="表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧集表/生图工作台/素材库）")
+    p_read.add_argument("--table", required=True, help="表名（角色库/角色档案/场景库/剧本设定/剧本分镜表/剧本表/生图工作台/素材库）")
     p_read.add_argument("--episode", type=int, default=None,
-                        help="仅剧集表/剧本分镜表：只读指定集（拆分镜时禁止无过滤读全量剧集）")
+                        help="仅剧本表/剧本分镜表：只读指定集（拆分镜时禁止无过滤读全量剧集）")
     p_read.add_argument("--context", type=int, default=0,
                         help="配合 --episode：连同前后各 N 集（拆分镜建议 --context 1）")
+    p_read.add_argument("--with-novel", action="store_true",
+                        help="仅剧本表：同时输出「小说内容」原文（默认剔除，避免撑爆上下文）")
+
+    p_mig = sub.add_parser("migrate-schema",
+                           help="存量飞书表迁移：剧集表→剧本表，补小说字段与场景库新字段")
+    p_mig.add_argument("workspace", help="workspace 目录路径或飞书 URL")
+    p_mig.add_argument("--dry-run", action="store_true", help="只读：打印迁移计划，不执行写入")
 
     args = parser.parse_args()
     {"init": cmd_init, "init-from-url": cmd_init_from_url,
      "status": cmd_status, "generate": cmd_generate,
      "push": cmd_push, "pull": cmd_pull, "expand": cmd_expand,
      "write": cmd_write, "read": cmd_read,
-     "set-path": cmd_set_path}[args.command](args)
+     "set-path": cmd_set_path, "migrate-schema": cmd_migrate_schema}[args.command](args)
 
 
 if __name__ == "__main__":

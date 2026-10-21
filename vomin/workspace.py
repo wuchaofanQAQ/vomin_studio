@@ -189,8 +189,22 @@ class Workspace:
         "剧本分镜表": ("load_storyboard", "shot_id", ["ref_image", "result_path", "file_path", "video_path"]),
         # 以下表不携带可传递给生成 API 的素材，仅登记引用会报错提示
         "角色档案": ("load_character_bibles", "name", []),
-        "剧集表": ("load_episodes", "episode", []),
+        "剧本表": ("load_episodes", "episode", []),
     }
+
+    @staticmethod
+    def _scene_view_rank(view: str) -> int:
+        """裸名 {场景库：名} 的默认视角优先级：数值越小越优先，母版最后（不直接挂分镜）。"""
+        view = view or ""
+        if view.startswith("主场景"):
+            return 0
+        if view.startswith("全景基准图"):
+            return 1
+        if view.startswith("正视图"):
+            return 2
+        if view.startswith("母版"):
+            return 9
+        return 5
 
     IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
     VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
@@ -206,7 +220,7 @@ class Workspace:
             {生图工作台：任务名}     → 收集工作台任务的结果图
             {素材库：素材ID}        → 按素材文件类型收集图片/视频
             {剧本设定：画面风格}     → 收集设定项的全局参考图
-            {剧本分镜表：ep01_s01}  → 收集该分镜已生成的图片/视频
+            {剧本分镜表：ep01_p01}  → 收集该分镜已生成的图片/视频
             通用形式 {sheetName:rowId}：sheetName 为上表任一表名，rowId 为该行主键。
 
         标记会从提示词正文中移除（画面由参考素材锚定，不重复文字描述），
@@ -227,14 +241,15 @@ class Workspace:
                 rows = getattr(self, loader_name)()
                 if sheet == "场景库":
                     mapping = {}
-                    default_by_name: dict[str, dict] = {}
+                    default_by_name: dict[str, tuple[int, dict]] = {}
                     for r in rows:
                         scene_name = str(r.get("name", ""))
-                        view = r.get("view_angle", "正视图（默认）")
+                        view = r.get("view_angle", "全景基准图（默认）")
                         mapping[f"{scene_name}·{view}"] = r
-                        if view == "正视图（默认）" or scene_name not in default_by_name:
-                            default_by_name[scene_name] = r
-                    for scene_name, r in default_by_name.items():
+                        rank = self._scene_view_rank(view)
+                        if scene_name not in default_by_name or rank < default_by_name[scene_name][0]:
+                            default_by_name[scene_name] = (rank, r)
+                    for scene_name, (_, r) in default_by_name.items():
                         if scene_name not in mapping:
                             mapping[scene_name] = r
                     sheet_cache[sheet] = mapping

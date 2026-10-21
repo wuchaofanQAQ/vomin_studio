@@ -15,7 +15,8 @@
       "Bash(python cli.py --help)",
       "Bash(python3 -c *)",
       "Bash(python -c *)",
-      "Bash(mkdir -p /Users/wuchaofan/PycharmProjects/vomin_studio/.claude/commands)"
+      "Bash(mkdir -p /Users/wuchaofan/PycharmProjects/vomin_studio/.claude/commands)",
+      "Bash(python -)"
     ]
   }
 }

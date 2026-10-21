@@ -36,13 +36,15 @@ python cli.py read <workspace> --table 角色库
 python cli.py read <workspace> --table 角色档案
 python cli.py read <workspace> --table 场景库
 
-# 剧集表/分镜表按集过滤：拆分镜只读 当前集 ± 1 集（共3集），禁止全量读剧集
-python cli.py read <workspace> --table 剧集表 --episode 5 --context 1   # 第4/5/6集
+# 剧本表/分镜表按集过滤：拆分镜只读 当前集 ± 1 集（共3集），禁止全量读剧本
+# 剧本表默认剔除「小说内容」(novel_text)，避免撑爆上下文；仅需要原文时才加 --with-novel
+python cli.py read <workspace> --table 剧本表 --episode 5 --context 1   # 第4/5/6集（不含小说原文）
+python cli.py read <workspace> --table 剧本表 --episode 5 --with-novel   # 仅第5集，连同小说原文
 python cli.py read <workspace> --table 剧本分镜表 --episode 5           # 仅第5集已有分镜
 python cli.py read <workspace> --table 生图工作台
 python cli.py read <workspace> --table 素材库
-# 全量读剧集表仅用于总览/检查，不得作为分镜生成的输入
-python cli.py read <workspace> --table 剧集表
+# 全量读剧本表仅用于总览/检查，不得作为分镜生成/场景抽取的输入
+python cli.py read <workspace> --table 剧本表
 ```
 
 ## 写数据（✏️ 需确认）
@@ -60,11 +62,11 @@ python cli.py write <workspace> --table 剧本设定 --data @settings.json
 | 表名 | match key | 说明 |
 |---|---|---|
 | 剧本设定 | `name` | 设定项名 |
-| 剧集表 | `episode` | 集号（数字） |
+| 剧本表 | `episode` | 集号（数字） |
 | 角色库 | `name` | 角色名 |
 | 角色档案 | `name` | 角色名 |
-| 场景库 | `name` | 场景名 |
-| 剧本分镜表 | `shot_id` | 镜头ID |
+| 场景库 | `name` | 空间名（同名多行靠 `view_angle` 区分：母版/主场景/局部·部位/闪回/外景） |
+| 剧本分镜表 | `shot_id` | 段ID（`ep{集号两位}_p{段序两位}`，一段一行） |
 | 生图工作台 | `name` | 任务名 |
 | 素材库 | `name` | 素材ID |
 
@@ -74,7 +76,7 @@ python cli.py write <workspace> --table 剧本设定 --data @settings.json
 # 生成指定角色/场景/分镜/工作台任务的素材
 python cli.py generate <workspace> --target 角色库:林砚
 python cli.py generate <workspace> --target 场景库:写字楼大堂
-python cli.py generate <workspace> --target 剧本分镜表:ep01_s01
+python cli.py generate <workspace> --target 剧本分镜表:ep01_p01
 python cli.py generate <workspace> --target 生图工作台:任务名
 
 # 批量生成所有"待生成"状态的分镜
@@ -84,7 +86,7 @@ python cli.py generate <workspace>
 python cli.py generate <workspace> --tts-only
 ```
 
-提示词锚定段中的 `{角色库：张三} 图1：张三，男主角，…` / `{场景库：出租屋} 图2：…` / `{sheetName:rowId} 视频N：…` 引用会在生成时自动解析：标记移除、图N/视频N 的身份说明保留，对应图片/视频按编号顺序作为参考素材随 API 传递。正文（STYLE LOCK/逐秒拆解）只用角色名/场景名，不写 `{}`。
+提示词【参考素材锚点】块中的 `{角色库：张三} 图1：【张三】，男主角，…` / `{场景库：出租屋} 图2：…` / `{sheetName:rowId} 视频N：…` 引用会在生成时自动解析：标记移除、图N/视频N 的身份说明保留，对应图片/视频按编号顺序作为参考素材随 API 传递。正文（资产锁定、整体基准、逐镜头等）只用【资产名】，不写 `{}`。
 
 ## 同步（🔍 pull 只读 / ✏️ push 需确认）
 
@@ -104,7 +106,20 @@ python cli.py status <workspace>
 
 # 预览提示词模板展开结果（引用解析后的最终文本 + 参考图/参考视频清单）
 python cli.py expand <workspace>
-python cli.py expand <workspace> --shot ep01_s01
+python cli.py expand <workspace> --shot ep01_p01
 ```
 
 `expand` 是写入前的只读预检：确认所有引用可解析、素材已就绪，再向用户发起确认。
+
+## 表结构迁移（存量飞书表）
+
+```bash
+# 🔍 只读：打印迁移计划（表改名 / 新增字段 / 受影响行数），不做任何写入
+python cli.py migrate-schema <workspace> --dry-run
+
+# ✏️ 需确认：执行迁移（剧集表→剧本表；补 小说章节/小说内容；场景库补 视角/参考场景/作用关联；
+#            旧「完整剧本」内容复制到「小说内容」后清空，状态置「待转剧本」；改写本地 workspace.yaml）
+python cli.py migrate-schema <workspace>
+```
+
+幂等：已完成的步骤自动跳过。执行前须先列清单并拿到用户明确确认。
