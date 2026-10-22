@@ -10,7 +10,7 @@
 | ② | character-three-view-prompt | 角色档案+画风 | 三视图出图提示词 | `read --table 角色库` | `write --table 角色库`（gen_prompt）+ `generate` |
 | ③ | novel-to-script（逐集 B0a） | 本章小说 + 剧本设定 + 角色库 + 前一集 script | 剧本表一整行：小说章节 / 小说内容（原文）/ 完整剧本（转化后）/ 集名 / 状态 | `read --table 剧本设定/角色库`、`read --table 剧本表 --episode N --context 1` | `write --table 剧本表` |
 | ④ | script-to-scene-assets（逐集 B0b） | 当前集±1集 script + 当前集小说原文（`--with-novel`，补空间细节）+ 剧本设定 + 场景库 | 场景清单 + 图间关联表 + 空间锚点表 + 场景图提示词包（母版→主场景→局部/闪回/外景）；**只建文字资产**；出图后过一致性检查 | `read --table 剧本表 --episode N --context 1` + `--episode N --with-novel` + `剧本设定/场景库` | `write --table 场景库` + `generate`（懒加载） |
-| ⑤ | novel-to-character-assets（逐集 B0b） | 当前集小说原文（`--with-novel`，仅 N 集；无原文退回 script）+ 角色库 | 新角色识别 + 完整 8 模块档案 | `read --table 剧本表 --episode N --with-novel` + `剧本设定/角色库` | `write --table 角色库/角色档案`（新角色） |
+| ⑤ | novel-to-character-assets（逐集 B0b） | 当前集小说原文（`--with-novel`，仅 N 集；无原文退回 script）+ 角色库 | 新角色识别 + 完整 6 模块档案 | `read --table 剧本表 --episode N --with-novel` + `剧本设定/角色库` | `write --table 角色库/角色档案`（新角色） |
 | ⑥ | director-segment-prompt（逐集 B1） | 当前集±1集 script + 角色 + 场景（含 description） | 分镜 + 依赖清单 + 视频提示词；**懒加载：只为本集用到的场景出图** | `read --table 剧本表 --episode N --context 1` + 角色库/角色档案/场景库/剧本设定 | `write --table 剧本分镜表 + `generate` |
 
 > `read --table 剧本表` 默认**剔除小说内容**（`novel_text`）；除 ③ 在需要对照原文时可加 `--with-novel` 外，其余节点一律不带。
@@ -31,7 +31,7 @@
                        ④ script-to-scene-assets（B0b 场景抽取）  ⑤ novel-to-character-assets（B0b 新角色）
                          读 剧本表 N±1 的 script + 剧本设定 + 场景库 + 角色库
                          ④ → 空间拆分（连通性+光影）→ 场景清单/图间关联/锚点 → 母版/主场景/局部提示词；已有则复用
-                         ⑤ → 新角色识别 + 完整 8 模块档案
+                         ⑤ → 新角色识别 + 完整 6 模块档案
                          → [轻量确认] → write 场景库（只建文字资产，不出图）+ 新角色进角色库/角色档案
                        ⑥ director-segment-prompt（B1 分镜+依赖+提示词）
                          读 剧本表 N±1 的 script（禁止全量读，禁止带小说原文）+ 角色库/角色档案 + 场景库(含 description)
@@ -46,7 +46,7 @@
 - 小说转剧本是独立一层：`小说内容` 存原文（逐字，不改，下游不读），`完整剧本` 存转化后的剧本，是场景抽取与分镜的**唯一剧本来源**。
 - 用户上传**成品剧本**时跳过 ③，直接写入 `完整剧本`，`小说章节`/`小说内容` 留空。
 - 拆分镜与视频提示词由 `director-segment-prompt` 一个技能一次完成，不再分两步。
-- 角色档案在初始化时已产出初版；逐集阶段（⑤）如发现新角色，直接产出完整 8 模块档案。
+- 角色档案在初始化时已产出初版；逐集阶段（⑤）如发现新角色，直接产出完整 6 模块档案。
 - **场景分层 + 懒加载**：场景由 ④ 先文字设计（母版→主场景→局部，description + gen_prompt），B1 产出 `dependencies` 后，只为本集用到的场景出图。**Phase A 不再提前出场景**。
 - **依赖链无循环**：novel-to-script(小说→script) → script-to-scene-assets(script→场景资产) → director-segment-prompt(分镜+依赖清单) → harness 差分 → 出图 + 一致性检查。
 
@@ -74,7 +74,7 @@ Phase A 完成后进入逐集 Phase B，剧本表、场景空间设计和出图�
   B0b: ④ script-to-scene-assets + ⑤ novel-to-character-assets
     read 剧本表 --episode N --context 1 + 剧本设定 + 场景库 + 角色库
     → ④ 场景清单/图间关联/锚点/提示词包（已有空间与母版复用，只补新空间/新局部）
-    → ⑤ 新角色识别（含完整 8 模块档案）
+    → ⑤ 新角色识别（含完整 6 模块档案）
     → [轻量确认] → write 场景库（只建文字资产，不出图）+ 新角色进角色库/角色档案
   B1: ⑥ director-segment-prompt（分镜+依赖+提示词）
     read 剧本表 --episode N --context 1   # 只读 N-1、N、N+1 三集，禁止全量读，禁止 --with-novel

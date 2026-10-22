@@ -178,8 +178,6 @@ class FeishuBitable:
                 {"field_name": "外貌描述", "type": 1},
                 {"field_name": "性格描述", "type": 1},
                 {"field_name": "战斗描述", "type": 1},
-                {"field_name": "标志性表达", "type": 1},
-                {"field_name": "标注交接", "type": 1},
             ],
         },
         "系统设置": {
@@ -542,8 +540,6 @@ class FeishuBitable:
                 "appearance": _text_val(f.get("外貌描述", "")),
                 "personality": _text_val(f.get("性格描述", "")),
                 "battle_desc": _text_val(f.get("战斗描述", "")),
-                "signature_expr": _text_val(f.get("标志性表达", "")),
-                "notes": _text_val(f.get("标注交接", "")),
                 "_record_id": rec["record_id"],
             })
         ws.save_json("character_bibles.json", bibles)
@@ -712,8 +708,6 @@ class FeishuBitable:
                 "外貌描述": b.get("appearance", ""),
                 "性格描述": b.get("personality", ""),
                 "战斗描述": b.get("battle_desc", ""),
-                "标志性表达": b.get("signature_expr", ""),
-                "标注交接": b.get("notes", ""),
             }
             record_id = name_to_record.get(b["name"])
             if record_id:

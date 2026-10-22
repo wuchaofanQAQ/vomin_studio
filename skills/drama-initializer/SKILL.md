@@ -56,7 +56,7 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
 按 `references/character-extract-init.md` 跨全部已上传章节抽取，产出**双表数据**：
 
 - **角色库**（精简版）：`name` / `char_type` / `appearance`（外貌+标志性特征）；音色 `voice_desc` 只放角色档案
-- **角色档案**（8 模块初版）：`basic_info` / `style_desc` / `voice_desc` / `appearance` / `personality` / `battle_desc` / `signature_expr` / `notes`
+- **角色档案**（6 模块初版）：`basic_info` / `style_desc` / `voice_desc` / `appearance` / `personality` / `battle_desc` / `signature_expr` / `notes`
 
 要求：有台词有动作的角色全抽；别名归一；缺失项标"未指定"进 `notes`；画风从剧本设定继承。逐集阶段如发现新角色，由 `novel-to-character-assets` 补充完整档案。
 
@@ -91,7 +91,7 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
     {"name": "世界观规则", "value": "...", "global_prompt": ""},
     {"name": "主线与冲突", "value": "...", "global_prompt": ""},
     {"name": "画面风格", "value": "真人写实偏电影质感...", "global_prompt": "画风描述，供全局继承"},
-    {"name": "平台调性", "value": "竖屏短剧9:16", "global_prompt": ""},
+    {"name": "画幅", "value": "16:9 横版", "global_prompt": ""},
     {"name": "剧本节奏", "value": "...", "global_prompt": ""},
     {"name": "剧本看点", "value": "...", "global_prompt": ""},
     {"name": "全集大纲", "value": "第1集：...；第2集：..."}
@@ -112,9 +112,7 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
       "voice_desc": "青年男，沉稳低沉，语速中等",
       "appearance": "年龄：...\n脸型：...\n发型：...\n标志性特征：...\n常驻服装：...",
       "personality": "性格：...\n动机：...\n弱点：...\n说话风格：...",
-      "battle_desc": "（非战斗题材标'未指定'）",
-      "signature_expr": "经典动作：...\n口头禅：...\n标志道具：...",
-      "notes": "来源集数：第1-5集\n缺失项：...\n推断项：..."
+      "battle_desc": "（非战斗题材标'未指定'）"
     }
   ]
 }
@@ -168,4 +166,4 @@ python cli.py write $WS --table 角色档案 --data '<角色档案部分>'
 
 - `references/script-intake.md` — 原文接收、通读、结构索引与完整性检查（Step 1）
 - `references/setting-template.md` — 剧本设定（剧集圣经）12 节模板（Step 2）
-- `references/character-extract-init.md` — 角色档案初始化抽取规则与 8 模块（Step 3）
+- `references/character-extract-init.md` — 角色档案初始化抽取规则与 6 模块（Step 3）

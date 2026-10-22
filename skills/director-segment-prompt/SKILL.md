@@ -94,7 +94,7 @@ description: 分镜与视频提示词一体化技能（Seedance 2.5，导演级�
 ```bash
 # 1. 剧本：当前集 + 前 1 集 + 后 1 集（边界集自动缺省；读转化后的 script，默认不含小说原文）
 python cli.py read $WS --table 剧本表 --episode N --context 1
-# 2. 全局设定（全量）：画风 / 平台调性
+# 2. 全局设定（全量）：画风 / 画幅
 python cli.py read $WS --table 剧本设定
 # 3. 角色库（形象图状态）+ 角色档案（性格/外貌/音色）
 python cli.py read $WS --table 角色库

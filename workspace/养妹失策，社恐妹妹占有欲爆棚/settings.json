@@ -16,60 +16,12 @@
     "_record_id": "reczz28Oq1T6sPH7"
   },
   {
-    "name": "集数",
-    "category": "核心设定",
-    "value": "当前已上传 3 集（第1-3集），后续集待编写",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1WABgF9"
-  },
-  {
-    "name": "平台调性",
-    "category": "核心设定",
-    "value": "红果短剧",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1ZrWydX"
-  },
-  {
-    "name": "核心设定",
-    "category": "核心设定",
-    "value": "一句话卖点：被亲妈抛弃六年的毒舌网文写手陈诚，被硬塞来一个没有血缘关系的社恐妹妹沈幼怡，他嘴上句句扎人、手上件件暖心，两个缺爱的人在一室一厅里互相治愈。",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1cs0gFT"
-  },
-  {
-    "name": "世界观",
-    "category": "核心设定",
-    "value": "",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1g3Nvge"
-  },
-  {
     "name": "基调",
     "category": "核心设定",
     "value": "甜虐交织·先虐后甜·日常治愈；毒舌傲娇 × 社恐怯生的反差萌",
     "global_prompt": "",
     "ref_image_path": "",
     "_record_id": "reczz28Oq1ix6KnB"
-  },
-  {
-    "name": "剧情简介",
-    "category": "核心设定",
-    "value": "陈诚12岁生日那天，母亲林女士抛下他跟着豪门沈家当家人沈崇山走了，他一个人吃完了那块发苦的生日蛋糕。六年后，沈崇山的女儿沈幼怡——一个没有血缘关系的社恐少女——被塞进他一室一厅的出租屋。陈诚嘴上句句赶人：“我这儿不是民宿”“关我屁事”“我不是你哥哥”，手上却给她铺粉色四件套、破例开一宿空调、点贵一倍的外卖、吹着她用冷水洗澡后的湿发。沈幼怡不开口说话，只低头打字：“如果你不想要我，我可以走”“谢谢哥哥”。两个都在寄人篱下的童年里长大的缺爱之人，在40℃夏末的一室一厅里，用最笨拙的方式互相试探、互相取暖。",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1m0yCc1"
-  },
-  {
-    "name": "主线与冲突",
-    "category": "核心设定",
-    "value": "",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1p71FQQ"
   },
   {
     "name": "画面风格",
@@ -88,22 +40,6 @@
     "_record_id": "reczz28Oq1v40ovB"
   },
   {
-    "name": "剧本看点",
-    "category": "核心设定",
-    "value": "",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq1xoX2WR"
-  },
-  {
-    "name": "全集大纲",
-    "category": "核心设定",
-    "value": "",
-    "global_prompt": "",
-    "ref_image_path": "",
-    "_record_id": "reczz28Oq20ygyYM"
-  },
-  {
     "name": "人物风格",
     "category": "画面风格",
     "value": "电影感仿真人像，单反人像质感，写实皮肤纹理，柔和均匀布光，原生皮肤质感，低饱和灰调，氛围感，高清8k，柔和暖侧光",
@@ -118,5 +54,13 @@
     "global_prompt": "电影感实景场景，实景拍摄质感，单反相机拍摄，浅景深，柔和自然光，低饱和灰调，氛围感，真实环境纹理，8k，柔和暖侧光",
     "ref_image_path": "",
     "_record_id": "reczz28PIxQj4ZzE"
+  },
+  {
+    "name": "画幅",
+    "category": "画面风格",
+    "value": "16:9 横版",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28QUbKuawQe"
   }
 ]

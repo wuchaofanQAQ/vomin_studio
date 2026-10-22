@@ -33,7 +33,7 @@ Phase B 逐集流程的**第一步（B0a）**。输入是用户上传的小说�
 设当前章为第 N 章（即第 N 集）：
 
 ```bash
-python cli.py read $WS --table 剧本设定                      # 画风 / 平台调性 / 世界观 / 单集时长
+python cli.py read $WS --table 剧本设定                      # 画风 / 画幅 / 世界观 / 单集时长
 python cli.py read $WS --table 角色库                        # 角色名统一，避免同人异名
 python cli.py read $WS --table 剧本表 --episode N --context 1  # 取前 1 集承接（默认不含 novel_text）
 ```

@@ -29,7 +29,7 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
   {"name": "剧名", "value": "重生打脸", "global_prompt": ""},
   {"name": "题材类型", "value": "都市·重生·逆袭", "global_prompt": ""},
   {"name": "画面风格", "value": "真人写实偏电影质感...", "global_prompt": "真人写实，电影色调，..."},
-  {"name": "平台调性", "value": "竖屏短剧9:16", "global_prompt": ""},
+  {"name": "画幅", "value": "16:9 横版", "global_prompt": ""},
   {"name": "全集大纲", "value": "第1集：...；第2集：..."}
 ]
 ```
@@ -88,9 +88,7 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
       "voice_desc": "青年男，沉稳低沉",
       "appearance": "脸型：方脸\n头发：黑色短发\n五官：...",
       "personality": "性格：内敛冷静\n动机：...\n说话风格：...",
-      "battle_desc": "战斗风格：...（缺失标'未指定'）",
-      "signature_expr": "经典动作：...\n口头禅：...",
-      "notes": "来源集数：...\n缺失项：...\n推断项：..."
+      "battle_desc": "战斗风格：...（缺失标'未指定'）"
     }
   ]
 }
@@ -106,8 +104,6 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
 | D 外貌 | `appearance` | character-three-view-prompt、director-segment-prompt |
 | E 性格 | `personality` | director-segment-prompt（角色演出分化） |
 | F 战斗 | `battle_desc` | 分镜动作/特效描写 |
-| G 标志性表达 | `signature_expr` | director-segment-prompt |
-| H 标注 | `notes` | harness（缺失项/资产状态追踪） |
 
 ## 2. 角色三视图提示词（character-three-view-prompt → 角色库 gen_prompt）
 
@@ -121,7 +117,7 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
 
 ## 3. 逐集新角色识别（novel-to-character-assets → 角色库/角色档案）
 
-**Phase B · B0b 的角色部分**，每集运行，只读当前集的 `剧本表.novel_text`（小说原文，`read --episode N --with-novel`）；`novel_text` 为空时退回 `剧本表.script`。产出新角色识别（含完整 8 模块档案）。
+**Phase B · B0b 的角色部分**，每集运行，只读当前集的 `剧本表.novel_text`（小说原文，`read --episode N --with-novel`）；`novel_text` 为空时退回 `剧本表.script`。产出新角色识别（含完整 6 模块档案）。
 
 > 场景抽取与空间设计已迁出，由第 4 节 `script-to-scene-assets` 负责。本节不再产出 `scene_designs`。
 
@@ -144,9 +140,7 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
         "voice_desc": "成年男，低沉粗犷",
         "appearance": "脸型：国字脸\n头发：寸头黑发\n五官：未指定\n肤色：小麦色\n体型：高大壮硕\n服装：黑色西装、黑色皮鞋\n标志性特征：未指定",
         "personality": "性格：沉默寡言\n动机：听从赵总指令\n说话风格：简短命令式",
-        "battle_desc": "战斗风格：未指定",
-        "signature_expr": "经典动作：未指定\n口头禅：未指定",
-        "notes": "来源：小说第3章\n缺失项：五官、标志性特征、战斗风格"
+        "battle_desc": "战斗风格：未指定"
       }
     ]
   },
@@ -154,7 +148,7 @@ drama-initializer 一次性产出**三段 JSON**（剧本表不在其内，由�
 }
 ```
 
-harness 确认后写入：角色库 + 角色档案同时写入（完整 8 模块档案，无需额外深化）。
+harness 确认后写入：角色库 + 角色档案同时写入（完整 6 模块档案，无需额外深化）。
 
 **幂等规则**：已在角色库中的角色跳过，不重复抽取。
 
