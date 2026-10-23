@@ -28,6 +28,10 @@ BODY_WORDS = [
     "手腕", "肩线", "胸口", "脚趾", "脚背", "光脚", "后脑", "头发", "刘海",
 ]
 
+# 负向指令词：正式提示词只写应出现的画面（台词不检查，剧本自带的否定词原样保留）
+NEGATIVE_CMD = ["不要", "禁止", "切勿", "严禁", "避免", "不得", "勿"]
+MAX_SEG_CHARS = 12000
+
 T = r"([\d.]+)"
 SEG_RE = re.compile(r"^##\s*第(\d+)段\s*[｜|]?\s*(.*)$")
 DUR_RE = re.compile(r"本段总时长\s*([\d.]+)\s*秒\s*时间范围\s*" + T + r"\s*-\s*" + T + r"s")
@@ -66,12 +70,15 @@ def parse(text: str) -> dict:
         if not ln:
             continue
 
+        if cur is not None and not ln.startswith("## ") and ln != "---":
+            cur["chars"] += len(re.sub(r"\s", "", ln))
+
         m = SEG_RE.match(ln)
         if m:
             cur = {"no": int(m.group(1)), "title": m.group(2).strip(),
                    "dur": None, "start": None, "end": None,
                    "shots": [], "assets": [], "anchor_braces": 0,
-                   "dialogue": [], "subs": 0}
+                   "dialogue": [], "subs": 0, "chars": 0}
             cur_shot = None
             in_assets = in_anchor = in_scene = False
             segs.append(cur)
@@ -217,6 +224,9 @@ def evaluate(doc: dict) -> tuple[list[tuple[str, bool, str]], list[str]]:
         if nums != list(range(1, len(nums) + 1)):
             errors.append(f"第{s['no']:02d}段 镜头编号不是从 01 连续：{nums}")
 
+        if s["chars"] > MAX_SEG_CHARS:
+            errors.append(f"第{s['no']:02d}段 全文 {s['chars']} 字（去空白）> {MAX_SEG_CHARS}，请精简或拆段")
+
         # 禁止省略写法（每段独立输入）
         seg_text = "".join("".join(sh["body"]) for sh in s["shots"])
         for w in ("同上", "接上段", "保持之前", "如前述", "同前", "承接上段"):
@@ -237,6 +247,11 @@ def evaluate(doc: dict) -> tuple[list[tuple[str, bool, str]], list[str]]:
                 if idx >= 0 and "【" not in clause[:idx]:
                     errors.append(f"第{s['no']:02d}段 镜头{sh['no']:02d} 身体部位没写归属："
                                   f"…{clause.strip()[:16]}…，请写成【资产名】的…")
+                    break
+            for w in NEGATIVE_CMD:
+                if w in body:
+                    errors.append(f"第{s['no']:02d}段 镜头{sh['no']:02d} 出现负向指令词「{w}」："
+                                  f"请改写成应出现的画面（正向表达）")
                     break
             if "后期贴字" in body:
                 errors.append(f"第{s['no']:02d}段 镜头{sh['no']:02d} 出现「后期贴字」："
@@ -294,6 +309,8 @@ def evaluate(doc: dict) -> tuple[list[tuple[str, bool, str]], list[str]]:
         ("段数 ≥1", len(segs) >= 1, f"{len(segs)} 段"),
         ("总时长 ≤ 180 秒", total <= 180, f"{total:.0f} 秒"),
         ("每段 ≤ 30 秒", all((s["dur"] or 0) <= 30 for s in segs), "ok"),
+        (f"每段 ≤ {MAX_SEG_CHARS} 字", all(s["chars"] <= MAX_SEG_CHARS for s in segs),
+         f"最长 {max((s['chars'] for s in segs), default=0)} 字"),
     ]
     return checks, errors
 
