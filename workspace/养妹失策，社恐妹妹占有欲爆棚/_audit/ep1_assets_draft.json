@@ -1,0 +1,109 @@
+{
+  "characters": [
+    {
+      "name": "陈诚",
+      "status": "复用"
+    },
+    {
+      "name": "沈幼怡",
+      "status": "复用"
+    },
+    {
+      "name": "林女士",
+      "status": "复用"
+    },
+    {
+      "name": "沈崇山",
+      "status": "复用"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "陈诚公寓门口",
+      "status": "复用"
+    },
+    {
+      "name": "陈诚公寓玄关客厅（日）",
+      "status": "复用"
+    },
+    {
+      "name": "陈诚童年家厨房（日）",
+      "status": "新建",
+      "description": "老式厨房，餐桌，冷灰低饱和，白天，无人",
+      "relation_note": "第1集场3 闪回，仅用于回忆时空",
+      "related_episodes": "1"
+    }
+  ],
+  "props": [
+    {
+      "name": "行李箱",
+      "status": "新建",
+      "prop_type": "手持道具",
+      "description": "行李箱，拉杆拉出，立在脚边",
+      "related_episodes": "1,2,3"
+    },
+    {
+      "name": "双肩书包",
+      "status": "新建",
+      "prop_type": "服装配饰",
+      "description": "鼓囊囊的双肩书包，双肩带，包身撑满",
+      "related_episodes": "1,2,3"
+    },
+    {
+      "name": "生日蛋糕",
+      "status": "新建",
+      "prop_type": "食物饮品",
+      "description": "超市打折的隔夜植物奶油蛋糕，顶一颗发蔫樱桃，插着蜡烛",
+      "related_episodes": "1"
+    }
+  ],
+  "reused": [
+    {
+      "type": "角色",
+      "name": "陈诚",
+      "reason": "角色库已有形象图"
+    },
+    {
+      "type": "角色",
+      "name": "沈幼怡",
+      "reason": "角色库已有形象图"
+    },
+    {
+      "type": "角色",
+      "name": "林女士",
+      "reason": "角色库已有形象图（闪回中仅背影）"
+    },
+    {
+      "type": "角色",
+      "name": "沈崇山",
+      "reason": "角色库已有形象图（闪回中仅手臂）"
+    },
+    {
+      "type": "场景",
+      "name": "陈诚公寓门口",
+      "reason": "场景库已有场景图"
+    },
+    {
+      "type": "场景",
+      "name": "陈诚公寓玄关客厅（日）",
+      "reason": "场景库已有场景图"
+    }
+  ],
+  "missing": [
+    {
+      "type": "角色",
+      "name": "陈诚 12岁",
+      "reason": "闪回只出现手与背影，剧本未写外形；要正脸时再建"
+    },
+    {
+      "type": "角色",
+      "name": "陈诚生父",
+      "reason": "本集只有砸碗声，没有可见画面"
+    },
+    {
+      "type": "道具",
+      "name": "手机 / 拖鞋",
+      "reason": "随身物，不单独建资产"
+    }
+  ]
+}

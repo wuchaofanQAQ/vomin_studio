@@ -1,6 +1,5 @@
 ---
 name: drama-initializer
-description: 剧本初始化技能。根据用户上传的小说章节或已写好的剧本（txt/md/docx/pdf/飞书文档/粘贴文本），一次性生成两大全局资产：①剧本设定（剧集圣经：题材/基调/画风/世界观/主线/看点/全集大纲）②角色档案（跨章抽取全角色，产出角色库精简版+角色档案8模块初版）。不再产出剧本表：逐集的小说转剧本由 novel-to-script 在 Phase B 逐集完成。当用户说"剧本初始化""初始化剧本""导入剧本""导入小说""我上传了剧本""根据剧本建项目""把这个剧本拆成角色和设定"时使用。本技能只产出文字资产，不直接写飞书、不直接出图——写入必须经用户确认后由 harness 执行。
 ---
 
 # Drama Initializer — 剧本初始化
@@ -12,12 +11,11 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
 ```
 用户上传小说章节 / 剧本
   → ① 剧本设定（剧集圣经）          → 飞书·剧本设定表
-  → ② 角色档案（角色库 + 角色档案）  → 飞书·角色库 + 角色档案
 ```
 
-**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-script` 在 Phase B 每集开头完成，写入飞书·剧本表（小说章节、小说内容、完整剧本）。
+**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-drama` 在 Phase B 每集开头完成，写入飞书·剧本表（小说章节、小说内容、完整剧本）。
 
-产出后下游衔接：角色三视图（character-three-view-prompt）、逐集小说转剧本（novel-to-script）、场景抽取（script-to-scene-assets）、分镜与提示词（director-segment-prompt）。
+产出后下游衔接：资产提取（drama-asset-extraction）、资产生图（drama-asset-generation）、逐集小说转剧本（novel-to-drama）、分镜与提示词（drama-segment-generation）。
 
 ## 核心铁律
 
@@ -51,14 +49,11 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
 
 每项标注【原文】/【推断】/【默认】。
 
-### Step 3 — 抽取角色档案（初版）
 
-按 `references/character-extract-init.md` 跨全部已上传章节抽取，产出**双表数据**：
+按 `references/character-extract-init.md` 跨全部已上传章节抽取，产出**资产库数据**：
 
-- **角色库**（精简版）：`name` / `char_type` / `appearance`（外貌+标志性特征）；音色 `voice_desc` 只放角色档案
-- **角色档案**（6 模块初版）：`basic_info` / `style_desc` / `voice_desc` / `appearance` / `personality` / `battle_desc` / `signature_expr` / `notes`
 
-要求：有台词有动作的角色全抽；别名归一；缺失项标"未指定"进 `notes`；画风从剧本设定继承。逐集阶段如发现新角色，由 `novel-to-character-assets` 补充完整档案。
+要求：有台词有动作的角色全抽；别名归一；缺失项标"未指定"进 `notes`；画风从剧本设定继承。逐集阶段如发现新角色，由 `drama-asset-extraction` 补充完整档案。
 
 ### Step 4 — 输出、说明与确认
 
@@ -67,7 +62,7 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
 3. 用户提意见 → 只修改对应草案并重新展示，**不写飞书**
 4. 用户明确确认后，harness 才执行写入（见下）
 
-> 剧本表（逐集的小说章节、小说内容、完整剧本）**不在本技能产出范围**，由 `novel-to-script` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
+> 剧本表（逐集的小说章节、小说内容、完整剧本）**不在本技能产出范围**，由 `novel-to-drama` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
 
 ## Automated Mode (Harness Integration)
 
@@ -96,23 +91,11 @@ description: 剧本初始化技能。根据用户上传的小说章节或已写�
     {"name": "剧本看点", "value": "...", "global_prompt": ""},
     {"name": "全集大纲", "value": "第1集：...；第2集：..."}
   ],
-  "角色库": [
+  "资产库": [
     {
       "name": "张三",
       "char_type": "核心",
       "appearance": "28岁亚洲男性，方脸，黑色短发，左眉骨伤疤，黑色冲锋衣"
-    }
-  ],
-  "角色档案": [
-    {
-      "name": "张三",
-      "char_type": "核心",
-      "basic_info": "角色名：张三\n别名：...\n定位：主角\n身份：...\n出场集数：第1-30集\n关系：...",
-      "style_desc": "画风基调：...（继承画面风格）\n主色调：...\n气质：...",
-      "voice_desc": "青年男，沉稳低沉，语速中等",
-      "appearance": "年龄：...\n脸型：...\n发型：...\n标志性特征：...\n常驻服装：...",
-      "personality": "性格：...\n动机：...\n弱点：...\n说话风格：...",
-      "battle_desc": "（非战斗题材标'未指定'）"
     }
   ]
 }
@@ -147,23 +130,20 @@ python cli.py init-from-url "<飞书URL>" --name "剧名"
 
 ```bash
 python cli.py write $WS --table 剧本设定 --data '<剧本设定部分>'
-python cli.py write $WS --table 角色库   --data '<角色库部分>'
-python cli.py write $WS --table 角色档案 --data '<角色档案部分>'
+python cli.py write $WS --table 资产库   --data '<资产库部分>'
 ```
 
 > 系统设置由 CLI init 自动维护，drama-initializer 不需要、也不要手写该表。
-> 剧本表由 `novel-to-script` 逐集写入，本技能不写。
+> 剧本表由 `novel-to-drama` 逐集写入，本技能不写。
 
 ## 产出交接
 
-- 角色三视图/定妆照 → `character-three-view-prompt`（吃角色库 appearance + 画面风格）
-- 逐集小说转剧本 → `novel-to-script`（吃剧本设定 + 角色库 + 小说章节）
-- 逐集场景抽取 → `script-to-scene-assets`（吃剧本设定 + 剧本表 script + 当前章小说内容补空间细节）
-- 逐集分镜 + 视频提示词 → `director-segment-prompt`（吃剧本表 + 角色档案 + 场景库）
-- 逐集新角色识别与档案产出 → `novel-to-character-assets`
+- 角色资产图/四视角 → `drama-asset-generation`（吃资产库描述 + 画面风格）
+- 逐集小说转剧本 → `novel-to-drama`（吃剧本设定 + 资产库 + 小说章节）
+- 逐集场景抽取 → `drama-asset-extraction`（吃剧本设定 + 剧本表 script + 当前章小说内容补空间细节）
+- 逐集新角色识别与档案产出 → `drama-asset-extraction`
 
 ## References
 
 - `references/script-intake.md` — 原文接收、通读、结构索引与完整性检查（Step 1）
 - `references/setting-template.md` — 剧本设定（剧集圣经）12 节模板（Step 2）
-- `references/character-extract-init.md` — 角色档案初始化抽取规则与 6 模块（Step 3）

@@ -1,0 +1,67 @@
+  已从飞书拉取 8 条设定到本地
+[
+  {
+    "name": "剧名",
+    "category": "核心设定",
+    "value": "养妹失策，社恐妹妹占有欲爆棚",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28Oq1Q3RZG8"
+  },
+  {
+    "name": "类型",
+    "category": "核心设定",
+    "value": "都市·情感·伪兄妹·甜虐（毒舌傲娇哥哥 × 社恐妹妹）",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28Oq1T6sPH7"
+  },
+  {
+    "name": "基调",
+    "category": "核心设定",
+    "value": "甜虐交织·先虐后甜·日常治愈；毒舌傲娇 × 社恐怯生的反差萌",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28Oq1ix6KnB"
+  },
+  {
+    "name": "画面风格",
+    "category": "画面风格",
+    "value": "电影感仿真人像，单反人像质感，写实皮肤纹理，柔和均匀布光，原生皮肤质感，低饱和灰调，氛围感，高清8k，柔和暖侧光",
+    "global_prompt": "电影感仿真人像，单反人像质感，写实皮肤纹理，柔和均匀布光，原生皮肤质感，低饱和灰调，氛围感，高清8k，柔和暖侧光",
+    "ref_image_path": "",
+    "_record_id": "reczz28Oq1sEnnMM"
+  },
+  {
+    "name": "剧本节奏",
+    "category": "核心设定",
+    "value": "红果短剧【用户指定】：节奏极快，开场1~2个分镜进入核心冲突，镜头短促不拖沓，该有的细节场景（回忆闪回/标志道具特写/环境氛围）保留；单集时长不固定，完全由分镜总时长决定（约2分钟上下浮动）；钩子密度：每集1个结尾钩子；前3集留人节奏：第1集收留（钩子：沈崇山“你哥哥会照顾好你的”）、第2集破防（钩子：25.9元烤牛肉拌饭）、第3集暧昧升温（钩子：湿发开口要吹风机）。",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28Oq1v40ovB"
+  },
+  {
+    "name": "人物风格",
+    "category": "画面风格",
+    "value": "电影感仿真人像，单反人像质感，写实皮肤纹理，柔和均匀布光，原生皮肤质感，低饱和灰调，氛围感，高清8k，柔和暖侧光",
+    "global_prompt": "电影感仿真人像，单反人像质感，写实皮肤纹理，柔和均匀布光，原生皮肤质感，低饱和灰调，氛围感，高清8k，柔和暖侧光",
+    "ref_image_path": "",
+    "_record_id": "reczz28PIxNMD22W"
+  },
+  {
+    "name": "剧本风格",
+    "category": "画面风格",
+    "value": "电影感实景场景，实景拍摄质感，单反相机拍摄，浅景深，柔和自然光，低饱和灰调，氛围感，真实环境纹理，8k，柔和暖侧光",
+    "global_prompt": "电影感实景场景，实景拍摄质感，单反相机拍摄，浅景深，柔和自然光，低饱和灰调，氛围感，真实环境纹理，8k，柔和暖侧光",
+    "ref_image_path": "",
+    "_record_id": "reczz28PIxQj4ZzE"
+  },
+  {
+    "name": "画幅",
+    "category": "画面风格",
+    "value": "16:9 横版",
+    "global_prompt": "",
+    "ref_image_path": "",
+    "_record_id": "reczz28QUbKuawQe"
+  }
+]

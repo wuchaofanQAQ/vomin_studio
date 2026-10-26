@@ -1,0 +1,81 @@
+{
+  "assets": [
+    {
+      "id": "S01",
+      "category": "场景",
+      "name": "陈诚公寓走廊",
+      "table": "场景库",
+      "has_image": true
+    },
+    {
+      "id": "S02",
+      "category": "场景",
+      "name": "陈诚公寓客厅",
+      "table": "场景库",
+      "has_image": true
+    },
+    {
+      "id": "R01",
+      "category": "角色",
+      "name": "沈幼怡",
+      "table": "角色库",
+      "has_image": true
+    },
+    {
+      "id": "R02",
+      "category": "角色",
+      "name": "陈诚",
+      "table": "角色库",
+      "has_image": true
+    },
+    {
+      "id": "R03",
+      "category": "角色",
+      "name": "林女士",
+      "table": "角色库",
+      "has_image": true
+    },
+    {
+      "id": "R04",
+      "category": "角色",
+      "name": "沈崇山",
+      "table": "角色库",
+      "has_image": true
+    },
+    {
+      "id": "P01",
+      "category": "道具",
+      "name": "行李箱",
+      "table": "道具库",
+      "has_image": true
+    },
+    {
+      "id": "P02",
+      "category": "道具",
+      "name": "双肩书包",
+      "table": "道具库",
+      "has_image": true
+    },
+    {
+      "id": "P03",
+      "category": "道具",
+      "name": "手机",
+      "table": "道具库",
+      "has_image": false
+    },
+    {
+      "id": "P04",
+      "category": "道具",
+      "name": "黑拖鞋",
+      "table": "道具库",
+      "has_image": false
+    },
+    {
+      "id": "P05",
+      "category": "道具",
+      "name": "玻璃杯",
+      "table": "道具库",
+      "has_image": false
+    }
+  ]
+}

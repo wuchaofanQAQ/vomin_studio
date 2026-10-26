@@ -1,0 +1,23 @@
+[
+  {
+    "name": "行李箱",
+    "prop_type": "手持道具",
+    "description": "行李箱，拉杆拉出，立在脚边",
+    "related_episodes": "1,2,3",
+    "source": "AIGC生成"
+  },
+  {
+    "name": "双肩书包",
+    "prop_type": "服装配饰",
+    "description": "鼓囊囊的双肩书包，双肩带，包身撑满",
+    "related_episodes": "1,2,3",
+    "source": "AIGC生成"
+  },
+  {
+    "name": "生日蛋糕",
+    "prop_type": "食物饮品",
+    "description": "超市打折的隔夜植物奶油蛋糕，顶一颗发蔫樱桃，插着蜡烛",
+    "related_episodes": "1",
+    "source": "AIGC生成"
+  }
+]

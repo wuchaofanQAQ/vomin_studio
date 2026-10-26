@@ -31,7 +31,7 @@ def main() -> None:
         s = ln.strip()
         m = SEG_RE.match(s)
         if m:
-            cur = {"no": int(m.group(1)), "dur": 0, "body": [], "dialogue": [], "assets": []}
+            cur = {"no": int(m.group(1)), "title": m.group(2).strip(), "dur": 0, "body": [], "dialogue": [], "assets": []}
             segs.append(cur)
             continue
         if cur is None:
@@ -43,13 +43,17 @@ def main() -> None:
         if d:
             cur["dur"] = float(d.group(1))
         cur["body"].append(ln)
-        if s.startswith("【本段资产锁定】"):
+        if s in ("【本段资产锁定】", "【资产锁定】"):
             cur["_in_assets"] = True
             continue
         if s in ("【本段现场生成】", "【本段整体基准】", "【本段初始空间】"):
             cur["_in_assets"] = False
-        if cur.get("_in_assets") and s.startswith("【"):
-            cur["assets"] += ASSET_RE.findall(s)
+        if cur.get("_in_assets"):
+            rest = s
+            for mm in re.finditer(r"【([^【】：]+)：\{[^}]+\}(?:\s*音频参考：\{[^}]+\})?】", s):
+                cur["assets"].append(mm.group(1).strip())
+                rest = rest.replace(mm.group(0), "")
+            cur["assets"] += ASSET_RE.findall(rest)
         m = DLG_RE.match(s)
         if m:
             cur["dialogue"].append(m.group(1).strip().replace(" 内心独白：", "（画外）："))
@@ -63,6 +67,7 @@ def main() -> None:
             "shot_id": f"ep01_p{seg['no']:02d}",
             "episode": 1,
             "shot_number": f"P{seg['no']:02d}",
+            "title": seg["title"],
             "timeline": f"00:00-00:{int(dur):02d}",
             "dialogue": "\n".join(seg["dialogue"]),
             "scene_desc": DESC.get(seg["no"], ""),

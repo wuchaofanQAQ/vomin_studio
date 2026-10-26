@@ -1,0 +1,48 @@
+{
+  "characters": [
+    {
+      "name": "陈诚",
+      "status": "新建",
+      "char_type": "核心",
+      "appearance": "18岁清瘦男生，黑色微卷中长发，白T黑短裤"
+    },
+    {
+      "name": "沈幼怡",
+      "status": "新建",
+      "char_type": "核心",
+      "appearance": "16岁少女，黑色长卷发蓝发箍，浅蓝碎花连衣裙白袜黑皮鞋"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "陈诚公寓门口",
+      "status": "新建",
+      "description": "老式公寓走廊，浅灰地砖，深灰防盗门，西端窗光，白天，无人",
+      "relation_note": "第1集场1/4/5 挂参考；不用于室内",
+      "related_episodes": "1"
+    }
+  ],
+  "props": [
+    {
+      "name": "行李箱",
+      "status": "新建",
+      "prop_type": "手持道具",
+      "description": "24寸黑色硬壳行李箱，拉杆拉出三十厘米，箱角磨损，箱体贴着两张旧航空贴纸，颜色哑光偏旧，轮子上还沾着干泥",
+      "related_episodes": "1"
+    }
+  ],
+  "reused": [
+    {
+      "type": "场景",
+      "name": "陈诚公寓玄关客厅（日）",
+      "reason": "已有场景图，直接复用"
+    }
+  ],
+  "missing": [
+    {
+      "type": "道具",
+      "name": "退烧药",
+      "reason": "剧本只提到一句、没有外观，未建行"
+    }
+  ]
+}

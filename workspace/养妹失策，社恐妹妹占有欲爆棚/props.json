@@ -1,0 +1,67 @@
+[
+  {
+    "name": "行李箱",
+    "prop_type": "手持道具",
+    "description": "精致酒红色亮面硬壳行李箱，24寸，玫瑰金包角，拉杆拉出，表面光洁无划痕",
+    "related_episodes": "1",
+    "ref_image": "ref\\props\\行李箱_20261024_180158.jpg",
+    "gen_prompt": "道具双视角图，画面中只有这一件道具，没有人物、没有手、没有其它物品。左侧为道具的正偏侧视角，能看清体积与厚度；右侧为正面视角，与左侧同一件道具、同一比例。背景为纯白背景，画面内无任何文字。电影级写实质感，表面光洁，无划痕、无破损，材质细节清晰。\n道具：精致酒红色亮面硬壳行李箱，24寸，玫瑰金包角，拉杆拉出，表面光洁无划痕",
+    "negative_prompt": "",
+    "gen_model": null,
+    "gen_status": "已出图",
+    "source": "AIGC生成",
+    "_record_id": "reczz28RCjRMb58g"
+  },
+  {
+    "name": "双肩书包",
+    "prop_type": "服装配饰",
+    "description": "灰色设计感大号双肩书包，女生款，精致，装得鼓鼓的",
+    "related_episodes": "1",
+    "ref_image": "ref\\props\\双肩书包_20261024_182033.jpg",
+    "gen_prompt": "道具双视角图，画面中只有这一件道具，没有人物、没有手、没有其它物品。左侧为道具的正偏侧视角，能看清体积与厚度；右侧为正面视角，与左侧同一件道具、同一比例。背景为纯白背景，画面内无任何文字。电影级写实质感，表面光洁，无划痕、无破损，材质细节清晰。\n道具：灰色设计感大号双肩书包，女生款，精致，装得鼓鼓的",
+    "negative_prompt": "",
+    "gen_model": null,
+    "gen_status": "已出图",
+    "source": "AIGC生成",
+    "_record_id": "reczz28RCjUhKFeX"
+  },
+  {
+    "name": "手机",
+    "prop_type": "电子设备",
+    "description": "黑色玻璃背板、钛金属边框的最新款苹果手机，屏幕亮着冷白光。",
+    "related_episodes": "1",
+    "ref_image": "ref\\props\\手机_20261025_114401.jpg",
+    "gen_prompt": "道具双视角图，画面中只有这一件道具，没有人物、没有手、没有其它物品。左侧为道具的正偏侧视角，能看清体积与厚度；右侧为正面视角，与左侧同一件道具、同一比例。背景为纯白背景，画面内无任何文字。电影级写实质感，表面光洁，无划痕、无破损，材质细节清晰。\n道具：最新款 iPhone 18 Pro Max，黑色磨砂玻璃背板，直角钛金属边框，左上角方形三摄模组（三颗大镜头三角形排列，另有 LiDAR 与闪光灯），背板中央一枚深色苹果标志，正面为全面屏与灵动岛，熄屏呈深灰玻璃反光",
+    "negative_prompt": "",
+    "gen_model": null,
+    "gen_status": "已出图",
+    "source": "手动制作",
+    "_record_id": "reczz28RUcn1IHLp"
+  },
+  {
+    "name": "黑拖鞋",
+    "prop_type": "服装配饰",
+    "description": "42码 男士黑拖鞋，鞋面两道轻微折痕，比较有质感",
+    "related_episodes": "1",
+    "ref_image": "ref\\props\\黑拖鞋_20261025_131202.jpg",
+    "gen_prompt": "道具双视角图，画面中只有这一件道具，没有人物、没有手、没有其它物品。左侧为道具的正偏侧视角，能看清体积与厚度；右侧为正面视角，与左侧同一件道具、同一比例。背景为纯白背景，画面内无任何文字。电影级写实质感，表面光洁，无划痕、无破损，材质细节清晰。\n道具：42码 男士黑拖鞋，鞋面两道轻微折痕，比较有质感",
+    "negative_prompt": "",
+    "gen_model": null,
+    "gen_status": "已出图",
+    "source": "手动制作",
+    "_record_id": "reczz28RUcqVRNL3"
+  },
+  {
+    "name": "玻璃杯",
+    "prop_type": "陈设道具",
+    "description": "超市赠品玻璃杯，杯壁一圈水垢，盛着半杯温水。",
+    "related_episodes": "1",
+    "ref_image": null,
+    "gen_prompt": "",
+    "negative_prompt": "",
+    "gen_model": null,
+    "gen_status": "待出图",
+    "source": "手动制作",
+    "_record_id": "reczz28RUctif6KI"
+  }
+]

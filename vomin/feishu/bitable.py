@@ -42,64 +42,28 @@ class FeishuBitable:
 
     # ------ 以下定义表结构常量供多处复用 ------
     TABLE_SCHEMA = {
+        "小说表": {
+            "primary_rename": "章节",
+            "fields": [
+                {"field_name": "标题", "type": 1},
+                {"field_name": "内容", "type": 1},
+            ],
+        },
         "剧本分镜表": {
-            "primary_rename": "镜头标题",
+            "primary_rename": "镜头编号",
             "fields": [
                 {"field_name": "集号", "type": 2},
-                {"field_name": "镜头编号", "type": 1},
-                {"field_name": "台词", "type": 1},
-                {"field_name": "镜头说明", "type": 1},
+                {"field_name": "镜头标题", "type": 1},
+                {"field_name": "模型", "type": 1},
                 {"field_name": "视频提示词", "type": 1},
-                {"field_name": "人物锁定", "type": 1},
-                {"field_name": "环境锁定", "type": 1},
                 {"field_name": "时间线", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待生成"}, {"name": "生成中"}, {"name": "待审核"},
                     {"name": "通过"}, {"name": "返工"}, {"name": "生成失败"},
                 ]}},
-                {"field_name": "配音路径", "type": 1},
                 {"field_name": "视频路径", "type": 1},
                 {"field_name": "任务ID", "type": 1},
                 {"field_name": "审核备注", "type": 1},
-            ],
-        },
-        "角色库": {
-            "primary_rename": "角色ID",
-            "fields": [
-                {"field_name": "角色名", "type": 1},
-                {"field_name": "角色类型", "type": 3, "property": {"options": [
-                    {"name": "核心"}, {"name": "重要配角"}, {"name": "配角"}, {"name": "龙套"},
-                ]}},
-                {"field_name": "外貌描述", "type": 1},
-                {"field_name": "生成提示词", "type": 1},
-                {"field_name": "文件路径", "type": 1},
-                {"field_name": "生成模型", "type": 1},
-            ],
-        },
-        "场景库": {
-            "primary_rename": "场景ID",
-            "fields": [
-                {"field_name": "场景名", "type": 1},
-                {"field_name": "视角", "type": 1},
-                {"field_name": "场景描述", "type": 1},
-                {"field_name": "参考场景", "type": 1},
-                {"field_name": "作用关联", "type": 1},
-                {"field_name": "关联集数", "type": 1},
-                {"field_name": "绑定场次", "type": 1},
-                {"field_name": "来源", "type": 3, "property": {"options": [
-                    {"name": "原始采集"}, {"name": "AIGC生成"}, {"name": "手动制作"},
-                ]}},
-                {"field_name": "生成提示词", "type": 1},
-                {"field_name": "负向提示词", "type": 1},
-                {"field_name": "文件路径", "type": 1},
-                {"field_name": "生成模型", "type": 1},
-                {"field_name": "出图状态", "type": 3, "property": {"options": [
-                    {"name": "待出图"}, {"name": "生成中"}, {"name": "已出图"},
-                    {"name": "需重抽"}, {"name": "已通过"},
-                ]}},
-                {"field_name": "一致性检查", "type": 3, "property": {"options": [
-                    {"name": "未检查"}, {"name": "通过"}, {"name": "不通过"},
-                ]}},
             ],
         },
         "素材库": {
@@ -132,16 +96,28 @@ class FeishuBitable:
             ],
         },
         "剧本表": {
-            "primary_rename": "集数",
+            "primary_rename": "集号",
             "fields": [
                 {"field_name": "集名", "type": 1},
-                {"field_name": "小说章节", "type": 1},
-                {"field_name": "小说内容", "type": 1},
+                {"field_name": "对应原小说章节", "type": 1},
                 {"field_name": "完整剧本", "type": 1},
+                {"field_name": "分镜设计稿", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待转剧本"}, {"name": "待编写"}, {"name": "草稿"},
                     {"name": "已确认"}, {"name": "已拆分镜"},
                 ]}},
+            ],
+        },
+        "音色库": {
+            "primary_rename": "音色ID",
+            "fields": [
+                {"field_name": "角色名", "type": 1},
+                {"field_name": "音色描述", "type": 1},
+                {"field_name": "文件路径", "type": 1},
+                {"field_name": "来源", "type": 3, "property": {"options": [
+                    {"name": "手动上传"}, {"name": "视频提取"}, {"name": "TTS合成"},
+                ]}},
+                {"field_name": "备注", "type": 1},
             ],
         },
         "生图工作台": {
@@ -157,7 +133,7 @@ class FeishuBitable:
                     {"name": "1K"}, {"name": "2K"}, {"name": "4K"},
                 ]}},
                 {"field_name": "画面比例", "type": 3, "property": {"options": [
-                    {"name": "16:9"}, {"name": "9:16"},
+                    {"name": "16:9"}, {"name": "9:16"}, {"name": "22:9"},
                 ]}},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待生成"}, {"name": "生成中"}, {"name": "已完成"}, {"name": "生成失败"},
@@ -166,18 +142,15 @@ class FeishuBitable:
                 {"field_name": "备注", "type": 1},
             ],
         },
-        "角色档案": {
-            "primary_rename": "角色名",
+        "资产库": {
+            "primary_rename": "名称",
             "fields": [
-                {"field_name": "角色类型", "type": 3, "property": {"options": [
-                    {"name": "核心"}, {"name": "重要配角"}, {"name": "配角"}, {"name": "龙套"},
+                {"field_name": "类型", "type": 3, "property": {"options": [
+                    {"name": "角色"}, {"name": "场景"}, {"name": "道具"},
                 ]}},
-                {"field_name": "基本信息", "type": 1},
-                {"field_name": "风格描述", "type": 1},
-                {"field_name": "音色描述", "type": 1},
-                {"field_name": "外貌描述", "type": 1},
-                {"field_name": "性格描述", "type": 1},
-                {"field_name": "战斗描述", "type": 1},
+                {"field_name": "描述", "type": 1},
+                {"field_name": "文件路径", "type": 1},
+                {"field_name": "备注", "type": 1},
             ],
         },
         "系统设置": {
@@ -205,7 +178,7 @@ class FeishuBitable:
         return {item["name"]: item["table_id"] for item in items}
 
     def ensure_tables(self, existing: dict[str, str]) -> dict[str, str]:
-        """检查 6 张标准表是否齐全，缺失的自动创建。返回完整映射。"""
+        """检查标准表是否齐全（含资产库），缺失的自动创建。返回完整映射。"""
         h = self._headers()
         base = f"bitable/v1/apps/{self.app_token}"
         tables = dict(existing)
@@ -302,7 +275,7 @@ class FeishuBitable:
         return self.create_record(tid, fields)["record_id"]
 
     def create_project(self, drama_name: str) -> dict:
-        """创建一个新项目的完整飞书多维表格（7 张表 + 全部字段 + 公开权限）。
+        """创建一个新项目的完整飞书多维表格（全部标准表 + 字段 + 公开权限）。
         返回 {'app_token': ..., 'url': ..., 'tables': {'剧本分镜表': tid, ...}}"""
         h = self._headers()
 
@@ -432,17 +405,13 @@ class FeishuBitable:
 
         for shot in shots:
             fields = {
-                "镜头标题": f"第{shot['episode']}集 {shot['shot_id']}",
-                "集号": shot["episode"],
                 "镜头编号": shot["shot_id"],
-                "台词": shot.get("dialogue", ""),
-                "镜头说明": shot.get("scene_desc", ""),
+                "镜头标题": shot.get("title") or f"第{shot['episode']}集 {shot['shot_id']}",
+                "模型": shot.get("model") or "",
+                "集号": int(float(shot.get("episode") or 1)),
                 "视频提示词": shot.get("prompt", ""),
-                "人物锁定": shot.get("char_lock", ""),
-                "环境锁定": shot.get("env_lock", ""),
                 "时间线": shot.get("timeline", ""),
                 "状态": shot.get("status", "待生成"),
-                "配音路径": shot.get("audio_path") or "",
                 "视频路径": shot.get("video_path") or "",
                 "任务ID": shot.get("task_id") or "",
                 "审核备注": shot.get("notes") or "",
@@ -471,16 +440,13 @@ class FeishuBitable:
             if not sid:
                 continue
             shots.append({
-                "episode": f.get("集号", 1),
+                "episode": int(float(f.get("集号", 1) or 1)),
                 "shot_id": sid,
-                "dialogue": _text_val(f.get("台词", "")),
-                "scene_desc": _text_val(f.get("镜头说明", "")),
+                "title": _text_val(f.get("镜头标题", "")),
+                "model": _text_val(f.get("模型", "")),
                 "prompt": _text_val(f.get("视频提示词", "")),
-                "char_lock": _text_val(f.get("人物锁定", "")),
-                "env_lock": _text_val(f.get("环境锁定", "")),
                 "timeline": _text_val(f.get("时间线", "")),
                 "status": _text_val(f.get("状态", "待生成")),
-                "audio_path": _text_val(f.get("配音路径")) or None,
                 "video_path": _text_val(f.get("视频路径")) or None,
                 "task_id": _text_val(f.get("任务ID")) or None,
                 "notes": _text_val(f.get("审核备注", "")),
@@ -493,131 +459,6 @@ class FeishuBitable:
         return shots
 
 
-    def pull_characters(self, ws) -> list[dict]:
-        """从飞书角色库拉取到本地 characters.json，返回角色列表。"""
-        table_id = self._table_id(ws, "角色库", "FEISHU_TABLE_CHARACTER")
-        if not table_id:
-            return ws.load_json("characters.json")
-
-        records = self.list_records(table_id)
-        chars = []
-        for rec in records:
-            f = rec.get("fields", {})
-            name = _text_val(f.get("角色名"))
-            if not name:
-                continue
-            chars.append({
-                "name": name,
-                "char_type": _text_val(f.get("角色类型", "")),
-                "appearance": _text_val(f.get("外貌描述", "")),
-                "ref_image": _text_val(f.get("文件路径")) or None,
-                "gen_prompt": _text_val(f.get("生成提示词", "")),
-                "gen_model": _text_val(f.get("生成模型")) or None,
-                "_record_id": rec["record_id"],
-            })
-        ws.save_json("characters.json", chars)
-        return chars
-
-    def pull_character_bibles(self, ws) -> list[dict]:
-        """从飞书角色档案表拉取到本地 character_bibles.json。"""
-        table_id = self._table_id(ws, "角色档案", "FEISHU_TABLE_CHARACTER_BIBLE")
-        if not table_id:
-            return ws.load_json("character_bibles.json")
-
-        records = self.list_records(table_id)
-        bibles = []
-        for rec in records:
-            f = rec.get("fields", {})
-            name = _text_val(f.get("角色名"))
-            if not name:
-                continue
-            bibles.append({
-                "name": name,
-                "char_type": _text_val(f.get("角色类型", "")),
-                "basic_info": _text_val(f.get("基本信息", "")),
-                "style_desc": _text_val(f.get("风格描述", "")),
-                "voice_desc": _text_val(f.get("音色描述", "")),
-                "appearance": _text_val(f.get("外貌描述", "")),
-                "personality": _text_val(f.get("性格描述", "")),
-                "battle_desc": _text_val(f.get("战斗描述", "")),
-                "_record_id": rec["record_id"],
-            })
-        ws.save_json("character_bibles.json", bibles)
-        return bibles
-
-    def pull_scenes(self, ws) -> list[dict]:
-        """从飞书场景库拉取到本地 scenes.json，返回场景列表。"""
-        table_id = self._table_id(ws, "场景库", "FEISHU_TABLE_SCENE")
-        if not table_id:
-            return ws.load_json("scenes.json")
-
-        records = self.list_records(table_id)
-        scenes = []
-        for rec in records:
-            f = rec.get("fields", {})
-            name = _text_val(f.get("场景名"))
-            if not name:
-                continue
-            scenes.append({
-                "name": name,
-                "view_angle": _text_val(f.get("视角", "")) or "全景基准图（默认）",
-                "description": _text_val(f.get("场景描述", "")),
-                "ref_scenes": _text_val(f.get("参考场景", "")),
-                "relation_note": _text_val(f.get("作用关联", "")),
-                "related_episodes": _text_val(f.get("关联集数", "")),
-                "bind_scenes": _text_val(f.get("绑定场次", "")),
-                "ref_image": _text_val(f.get("文件路径")) or None,
-                "gen_prompt": _text_val(f.get("生成提示词", "")),
-                "negative_prompt": _text_val(f.get("负向提示词", "")),
-                "gen_model": _text_val(f.get("生成模型")) or None,
-                "gen_status": _text_val(f.get("出图状态", "")) or "待出图",
-                "consistency": _text_val(f.get("一致性检查", "")) or "未检查",
-                "source": _text_val(f.get("来源", "")),
-                "_record_id": rec["record_id"],
-            })
-        ws.save_json("scenes.json", scenes)
-        return scenes
-
-    def update_character(self, ws, char: dict):
-        """更新飞书角色库中的单条记录。char 必须含 _record_id。"""
-        table_id = self._table_id(ws, "角色库", "FEISHU_TABLE_CHARACTER")
-        record_id = char.get("_record_id")
-        if not table_id or not record_id:
-            return
-        fields = {
-            "角色名": char.get("name", ""),
-            "角色类型": char.get("char_type", ""),
-            "外貌描述": char.get("appearance", ""),
-            "生成提示词": char.get("gen_prompt", ""),
-            "文件路径": char.get("ref_image") or "",
-            "生成模型": char.get("gen_model") or "",
-        }
-        self.update_record(table_id, record_id, fields)
-
-    def update_scene(self, ws, scene: dict):
-        """更新飞书场景库中的单条记录。scene 必须含 _record_id。"""
-        table_id = self._table_id(ws, "场景库", "FEISHU_TABLE_SCENE")
-        record_id = scene.get("_record_id")
-        if not table_id or not record_id:
-            return
-        fields = {
-            "场景名": scene.get("name", ""),
-            "视角": scene.get("view_angle", "全景基准图（默认）"),
-            "场景描述": scene.get("description", ""),
-            "参考场景": scene.get("ref_scenes", ""),
-            "作用关联": scene.get("relation_note", ""),
-            "关联集数": scene.get("related_episodes", ""),
-            "绑定场次": scene.get("bind_scenes", ""),
-            "来源": scene.get("source", ""),
-            "生成提示词": scene.get("gen_prompt", ""),
-            "负向提示词": scene.get("negative_prompt", ""),
-            "文件路径": scene.get("ref_image") or "",
-            "生成模型": scene.get("gen_model") or "",
-            "出图状态": scene.get("gen_status", "待出图"),
-            "一致性检查": scene.get("consistency", "未检查"),
-        }
-        self.update_record(table_id, record_id, fields)
-
     def update_shot(self, ws, shot: dict):
         """更新飞书分镜表中的单条记录。shot 必须含 _record_id。"""
         table_id = self._table_id(ws, "剧本分镜表", "FEISHU_TABLE_STORYBOARD")
@@ -626,11 +467,9 @@ class FeishuBitable:
             return
         fields = {
             "状态": shot.get("status", ""),
+            "镜头标题": shot.get("title", ""),
             "视频提示词": shot.get("prompt", ""),
-            "人物锁定": shot.get("char_lock", ""),
-            "环境锁定": shot.get("env_lock", ""),
             "时间线": shot.get("timeline", ""),
-            "配音路径": shot.get("audio_path") or "",
             "视频路径": shot.get("video_path") or "",
             "任务ID": shot.get("task_id") or "",
             "审核备注": shot.get("notes") or "",
@@ -641,130 +480,6 @@ class FeishuBitable:
         """从 workspace config 或环境变量获取 table_id。"""
         tables = ws.config.get("feishu", {}).get("tables", {})
         return tables.get(table_name, "") or os.environ.get(env_key, "")
-
-    def push_characters(self, ws):
-        """把本地 characters.json 同步到飞书角色库。用角色名做匹配键。"""
-        table_id = self._table_id(ws, "角色库", "FEISHU_TABLE_CHARACTER")
-        if not table_id:
-            print("  未配置角色库，跳过")
-            return
-
-        chars = ws.load_json("characters.json")
-        if not chars:
-            print("  本地无角色数据")
-            return
-
-        existing = self.list_records(table_id)
-        name_to_record = {}
-        for rec in existing:
-            name = _text_val(rec.get("fields", {}).get("角色名"))
-            if name:
-                name_to_record[name] = rec["record_id"]
-
-        for c in chars:
-            fields = {
-                "角色ID": c.get("name", ""),
-                "角色名": c.get("name", ""),
-                "角色类型": c.get("char_type", ""),
-                "外貌描述": c.get("appearance", ""),
-                "生成提示词": c.get("gen_prompt", ""),
-                "文件路径": c.get("ref_image") or "",
-                "生成模型": c.get("gen_model", ""),
-            }
-            record_id = name_to_record.get(c["name"])
-            if record_id:
-                self.update_record(table_id, record_id, fields)
-                print(f"  飞书更新角色: {c['name']}")
-            else:
-                self.create_record(table_id, fields)
-                print(f"  飞书创建角色: {c['name']}")
-
-    def push_character_bibles(self, ws):
-        """把本地 character_bibles.json 同步到飞书角色档案表。用角色名做匹配键。"""
-        table_id = self._table_id(ws, "角色档案", "FEISHU_TABLE_CHARACTER_BIBLE")
-        if not table_id:
-            print("  未配置角色档案表，跳过")
-            return
-
-        bibles = ws.load_json("character_bibles.json")
-        if not bibles:
-            print("  本地无角色档案数据")
-            return
-
-        existing = self.list_records(table_id)
-        name_to_record = {}
-        for rec in existing:
-            name = _text_val(rec.get("fields", {}).get("角色名"))
-            if name:
-                name_to_record[name] = rec["record_id"]
-
-        for b in bibles:
-            fields = {
-                "角色名": b.get("name", ""),
-                "角色类型": b.get("char_type", ""),
-                "基本信息": b.get("basic_info", ""),
-                "风格描述": b.get("style_desc", ""),
-                "音色描述": b.get("voice_desc", ""),
-                "外貌描述": b.get("appearance", ""),
-                "性格描述": b.get("personality", ""),
-                "战斗描述": b.get("battle_desc", ""),
-            }
-            record_id = name_to_record.get(b["name"])
-            if record_id:
-                self.update_record(table_id, record_id, fields)
-                print(f"  飞书更新角色档案: {b['name']}")
-            else:
-                self.create_record(table_id, fields)
-                print(f"  飞书创建角色档案: {b['name']}")
-
-    def push_scenes(self, ws):
-        """把本地 scenes.json 同步到飞书场景库。用场景名+视角做匹配键。"""
-        table_id = self._table_id(ws, "场景库", "FEISHU_TABLE_SCENE")
-        if not table_id:
-            print("  未配置场景库，跳过")
-            return
-
-        scenes = ws.load_json("scenes.json")
-        if not scenes:
-            print("  本地无场景数据")
-            return
-
-        existing = self.list_records(table_id)
-        key_to_record = {}
-        for rec in existing:
-            f = rec.get("fields", {})
-            name = _text_val(f.get("场景名"))
-            view = _text_val(f.get("视角", "")) or "全景基准图（默认）"
-            if name:
-                key_to_record[f"{name}·{view}"] = rec["record_id"]
-
-        for s in scenes:
-            view_angle = s.get("view_angle", "全景基准图（默认）")
-            label = f"{s['name']}·{view_angle}"
-            fields = {
-                "场景ID": label,
-                "场景名": s.get("name", ""),
-                "视角": view_angle,
-                "场景描述": s.get("description", ""),
-                "参考场景": s.get("ref_scenes", ""),
-                "作用关联": s.get("relation_note", ""),
-                "关联集数": s.get("related_episodes", ""),
-                "绑定场次": s.get("bind_scenes", ""),
-                "来源": s.get("source") or ("AIGC生成" if s.get("gen_prompt") else "原始采集"),
-                "生成提示词": s.get("gen_prompt", ""),
-                "负向提示词": s.get("negative_prompt", ""),
-                "文件路径": s.get("ref_image") or "",
-                "生成模型": s.get("gen_model", ""),
-                "出图状态": s.get("gen_status", "待出图"),
-                "一致性检查": s.get("consistency", "未检查"),
-            }
-            record_id = key_to_record.get(label)
-            if record_id:
-                self.update_record(table_id, record_id, fields)
-                print(f"  飞书更新场景: {label}")
-            else:
-                self.create_record(table_id, fields)
-                print(f"  飞书创建场景: {label}")
 
     def push_settings(self, ws):
         """把本地 settings.json 同步到飞书剧本设定表。用设定项名做匹配键。"""
@@ -801,6 +516,49 @@ class FeishuBitable:
                 self.create_record(table_id, fields)
                 print(f"  飞书创建设定: {s['name']}")
 
+    # ------ 小说表 ------
+    def _novel_table_id(self) -> str:
+        cfg = getattr(self, "table_map", {}) or {}
+        tid = cfg.get("小说表", "")
+        if not tid:
+            tid = self.discover_tables().get("小说表", "")
+        if not tid:
+            raise RuntimeError("飞书表格中未找到「小说表」数据表")
+        return tid
+
+    def pull_novels(self, ws) -> list[dict]:
+        tid = self._novel_table_id()
+        rows = []
+        for r in self.list_records(tid):
+            f = r.get("fields", {})
+            rows.append({
+                "章节": _text_val(f.get("章节")),
+                "标题": _text_val(f.get("标题")),
+                "内容": _text_val(f.get("内容")),
+            })
+        ws.save_json("novels.json", rows)
+        return rows
+
+    def push_novels(self, ws):
+        tid = self._novel_table_id()
+        existing = {}
+        for r in self.list_records(tid):
+            key = _text_val(r.get("fields", {}).get("章节"))
+            if key:
+                existing[key] = r["record_id"]
+        for row in ws.load_json("novels.json"):
+            fields = {
+                "章节": row.get("章节", ""),
+                "标题": row.get("标题", ""),
+                "内容": row.get("内容", ""),
+            }
+            key = str(fields["章节"])
+            if key in existing:
+                self.update_record(tid, existing[key], fields)
+            else:
+                self.create_record(tid, fields)
+        print(f"  小说表已同步: {len(ws.load_json('novels.json'))} 章")
+
     def pull_episodes(self, ws) -> list[dict]:
         """从飞书剧本表拉取到本地 episodes.json，返回剧本列表。"""
         table_id = self._table_id(ws, "剧本表", "FEISHU_TABLE_EPISODE")
@@ -811,14 +569,13 @@ class FeishuBitable:
         episodes = []
         for rec in records:
             f = rec.get("fields", {})
-            ep_num = _text_val(f.get("集数"))
+            ep_num = _text_val(f.get("集号"))
             if not ep_num:
                 continue
             episodes.append({
                 "episode": ep_num,
                 "title": _text_val(f.get("集名", "")),
-                "novel_chapter": _text_val(f.get("小说章节", "")),
-                "novel_text": _text_val(f.get("小说内容", "")),
+                "source_chapters": _text_val(f.get("对应原小说章节", "")),
                 "script": _text_val(f.get("完整剧本", "")),
                 "status": _text_val(f.get("状态", "待编写")),
                 "_record_id": rec["record_id"],
@@ -829,7 +586,7 @@ class FeishuBitable:
         return episodes
 
     def push_episodes(self, ws):
-        """把本地 episodes.json 同步到飞书剧本表。用集数做匹配键。"""
+        """把本地 episodes.json 同步到飞书剧本表。用集号做匹配键。"""
         table_id = self._table_id(ws, "剧本表", "FEISHU_TABLE_EPISODE")
         if not table_id:
             print("  未配置剧本表，跳过")
@@ -843,26 +600,120 @@ class FeishuBitable:
         existing = self.list_records(table_id)
         ep_to_record = {}
         for rec in existing:
-            ep_num = _text_val(rec.get("fields", {}).get("集数"))
+            ep_num = _text_val(rec.get("fields", {}).get("集号"))
             if ep_num:
                 ep_to_record[ep_num] = rec["record_id"]
 
         for ep in episodes:
+            try:
+                ep_key = str(int(float(ep.get("episode"))))
+            except (TypeError, ValueError):
+                ep_key = str(ep.get("episode", ""))
             fields = {
-                "集数": ep.get("episode", ""),
+                "集号": ep_key,
                 "集名": ep.get("title", ""),
-                "小说章节": ep.get("novel_chapter", ""),
-                "小说内容": ep.get("novel_text", ""),
+                "对应原小说章节": str(ep.get("source_chapters", "") or ""),
                 "完整剧本": ep.get("script", ""),
                 "状态": ep.get("status", "待编写"),
             }
-            record_id = ep_to_record.get(ep["episode"])
+            record_id = ep_to_record.get(ep_key) or ep_to_record.get(str(ep.get("episode")))
             if record_id:
                 self.update_record(table_id, record_id, fields)
                 print(f"  飞书更新剧本: {ep['episode']}")
             else:
                 self.create_record(table_id, fields)
                 print(f"  飞书创建剧本: {ep['episode']}")
+
+    def ensure_fields(self, table_id: str, field_defs: list[dict]) -> list[str]:
+        """给已存在的表补缺失字段；已存在则跳过。返回新建的字段名。"""
+        furl = self._api(f"bitable/v1/apps/{self.app_token}/tables/{table_id}/fields")
+        resp = requests.get(furl, headers=self._headers(), timeout=15)
+        exist = {f.get("field_name") for f in resp.json().get("data", {}).get("items", [])}
+        made = []
+        for fd in field_defs:
+            if fd["field_name"] in exist:
+                continue
+            r = requests.post(furl, headers=self._headers(), json=fd, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            if data.get("code") != 0:
+                raise RuntimeError(f"飞书建字段失败: {fd['field_name']} {data.get('msg')}")
+            made.append(fd["field_name"])
+        return made
+
+    def pull_assets_lib(self, ws) -> list[dict]:
+        """从飞书资产库拉取到本地 assets_lib.json。"""
+        table_id = self._table_id(ws, "资产库", "FEISHU_TABLE_ASSET_LIB")
+        if not table_id:
+            return ws.load_json("assets_lib.json")
+        rows = []
+        for rec in self.list_records(table_id):
+            f = rec.get("fields", {})
+            nm = _text_val(f.get("名称"))
+            if not nm:
+                continue
+            rows.append({
+                "name": nm,
+                "kind": _text_val(f.get("类型", "")),
+                "description": _text_val(f.get("描述", "")),
+                "file_path": _text_val(f.get("文件路径", "")),
+                "note": _text_val(f.get("备注", "")),
+                "_record_id": rec["record_id"],
+            })
+        ws.save_json("assets_lib.json", rows)
+        return rows
+
+    def push_assets_lib(self, ws):
+        """把本地 assets_lib.json 同步到飞书资产库。用名称做匹配键。"""
+        table_id = self._table_id(ws, "资产库", "FEISHU_TABLE_ASSET_LIB")
+        if not table_id:
+            print("  未配置资产库，跳过")
+            return
+        rows = ws.load_json("assets_lib.json")
+        existing = {}
+        for rec in self.list_records(table_id):
+            nm = _text_val(rec.get("fields", {}).get("名称"))
+            if nm:
+                existing[nm] = rec["record_id"]
+        for a in rows:
+            fields = {
+                "名称": a.get("name", ""),
+                "类型": a.get("kind", ""),
+                "描述": a.get("description", ""),
+                "文件路径": a.get("file_path", ""),
+                "备注": a.get("note", ""),
+            }
+            rid = existing.get(a["name"])
+            if rid:
+                self.update_record(table_id, rid, fields)
+            else:
+                self.create_record(table_id, fields)
+        print(f"  资产库已同步 {len(rows)} 条")
+
+    def pull_voices(self, ws) -> list[dict]:
+        """从飞书音色库拉取到本地 voices.json，返回音色列表。"""
+        table_id = self._table_id(ws, "音色库", "FEISHU_TABLE_VOICE")
+        if not table_id:
+            return ws.load_json("voices.json")
+
+        voices = []
+        for rec in self.list_records(table_id):
+            f = rec.get("fields", {})
+            name = _text_val(f.get("音色ID"))
+            if not name:
+                continue
+            voices.append({
+                "name": name,
+                "character": _text_val(f.get("角色名", "")),
+                "description": _text_val(f.get("音色描述", "")),
+                "file_path": _text_val(f.get("文件路径", "")),
+                "source": _text_val(f.get("来源", "")),
+                "notes": _text_val(f.get("备注", "")),
+                "_record_id": rec["record_id"],
+            })
+        ws.save_json("voices.json", voices)
+        print(f"  已从飞书拉取 {len(voices)} 条音色到本地")
+        return voices
 
     def pull_workbench(self, ws) -> list[dict]:
         """从飞书生图工作台拉取到本地 workbench.json，返回任务列表。"""
@@ -909,6 +760,66 @@ class FeishuBitable:
             "画面比例": task.get("ratio") or "",
         }
         self.update_record(table_id, record_id, fields)
+
+    def push_workbench(self, ws):
+        """把本地 workbench.json 同步到飞书：任务名做匹配键，已有则更新，没有则新建。
+
+        新建后把 _record_id 写回本地，保证 generate 能把状态与结果路径回填到同一条记录。"""
+        table_id = self._table_id(ws, "生图工作台", "FEISHU_TABLE_WORKBENCH")
+        if not table_id:
+            print("  未配置生图工作台，跳过飞书同步")
+            return
+        tasks = ws.load_json("workbench.json") or []
+        if not tasks:
+            print("  本地无工作台任务")
+            return
+
+        existing = self.list_records(table_id)
+        by_name = {}
+        for rec in existing:
+            nm = _text_val(rec.get("fields", {}).get("任务名"))
+            if nm:
+                by_name[nm] = rec["record_id"]
+
+        created, updated = 0, 0
+        for task in tasks:
+            prompt = task.get("prompt") or ""
+            name = (task.get("name") or "").strip()
+            if not name and prompt.strip():
+                name = prompt.strip().splitlines()[0][:20]
+                task["name"] = name
+            if not name:
+                continue
+            fields = {
+                "任务名": name,
+                "提示词": prompt,
+                "模型": task.get("model") or "",
+                "分辨率": task.get("size") or "",
+                "画面比例": task.get("ratio") or "16:9",
+                "状态": task.get("status") or "待生成",
+                "结果路径": task.get("result_path") or "",
+                "备注": task.get("notes") or "",
+            }
+            rid = by_name.get(name) or task.get("_record_id")
+            try:
+                if rid:
+                    self.update_record(table_id, rid, fields)
+                    updated += 1
+                    print(f"  飞书更新: {name}")
+                else:
+                    rec = self.create_record(table_id, fields)
+                    rid = (rec or {}).get("record_id")
+                    if rid:
+                        by_name[name] = rid
+                    created += 1
+                    print(f"  飞书新建: {name}")
+                if rid:
+                    task["_record_id"] = rid
+            except Exception as e:
+                print(f"  飞书同步失败（{name}）: {e}")
+
+        ws.save_json("workbench.json", tasks)
+        print(f"  工作台同步：新增 {created}，更新 {updated}")
 
     def pull_assets(self, ws) -> list[dict]:
         """从飞书素材库拉取到本地 assets.json，返回素材列表。"""

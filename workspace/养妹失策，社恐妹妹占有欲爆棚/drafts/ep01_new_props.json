@@ -1,0 +1,26 @@
+[
+  {
+    "name": "手机",
+    "prop_type": "电子设备",
+    "description": "黑色玻璃背板、钛金属边框的最新款苹果手机，屏幕亮着冷白光。",
+    "related_episodes": "1",
+    "source": "手动制作",
+    "gen_status": "待出图"
+  },
+  {
+    "name": "黑拖鞋",
+    "prop_type": "服装配饰",
+    "description": "42码旧塑料黑拖鞋，鞋面两道折痕，鞋底磨得发白。",
+    "related_episodes": "1",
+    "source": "手动制作",
+    "gen_status": "待出图"
+  },
+  {
+    "name": "玻璃杯",
+    "prop_type": "陈设道具",
+    "description": "超市赠品玻璃杯，杯壁一圈水垢，盛着半杯温水。",
+    "related_episodes": "1",
+    "source": "手动制作",
+    "gen_status": "待出图"
+  }
+]

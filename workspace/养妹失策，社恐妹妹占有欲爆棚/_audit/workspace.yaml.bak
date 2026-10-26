@@ -1,0 +1,29 @@
+ark:
+  default_duration: 5
+  default_ratio: '16:9'
+  default_resolution: 720p
+  image_model: doubao-seedream-5-0-flash-260915
+  video_model: doubao-seedance-2-5-260628
+  video_model_fast: doubao-seedance-2-0-fast-260128
+budget:
+  spent: 0
+  total_limit: 5000
+drama_name: 养妹失策，社恐妹妹占有欲爆棚
+feishu:
+  app_token: UWhZbNm8ba7fUlsC0WqcetrJnsd
+  tables:
+    剧本分镜表: tblxFQ18PyGiRwcT
+    剧本设定: tbl9DXqThsrAAjSR
+    剧本表: tbluiZYU9urE5ALm
+    场景库: tblYvyxdSlSKCr49
+    生图工作台: tblaWe7XdVeIxLK2
+    音色库: tblCbPltaQSXX7wc
+    系统设置: tblyE85lukhCV3YF
+    素材库: tblbtGU0O0K2kWGj
+    角色库: tblLURh6fnu3rEB2
+    角色档案: tbl4RVaMtNCZ1U2f
+  url: https://my.feishu.cn/base/UWhZbNm8ba7fUlsC0WqcetrJnsd
+tts:
+  format: mp3
+  model: seed-audio-1.0
+  sample_rate: 48000

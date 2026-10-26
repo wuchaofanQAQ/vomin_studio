@@ -108,26 +108,8 @@ class Workspace:
         self.save_json("storyboard.json", data)
         self._cache["storyboard"] = data
 
-    def load_characters(self) -> list[dict]:
-        return self._load_from_feishu("characters", "pull_characters", "characters.json")
-
-    def save_characters(self, data: list[dict]):
-        self.save_json("characters.json", data)
-        self._cache["characters"] = data
-
-    def load_character_bibles(self) -> list[dict]:
-        return self._load_from_feishu("character_bibles", "pull_character_bibles", "character_bibles.json")
-
-    def save_character_bibles(self, data: list[dict]):
-        self.save_json("character_bibles.json", data)
-        self._cache["character_bibles"] = data
-
-    def load_scenes(self) -> list[dict]:
-        return self._load_from_feishu("scenes", "pull_scenes", "scenes.json")
-
-    def save_scenes(self, data: list[dict]):
-        self.save_json("scenes.json", data)
-        self._cache["scenes"] = data
+    def load_assets_lib(self) -> list[dict]:
+        return self._load_from_feishu("assets_lib", "pull_assets_lib", "assets_lib.json")
 
     def load_settings(self) -> list[dict]:
         return self._load_from_feishu("settings", "pull_settings", "settings.json")
@@ -149,13 +131,17 @@ class Workspace:
     def load_assets(self) -> list[dict]:
         return self._load_from_feishu("assets", "pull_assets", "assets.json")
 
+    def load_voices(self) -> list[dict]:
+        return self._load_from_feishu("voices", "pull_voices", "voices.json")
+
     def get_global_prompt(self) -> str:
         """从 settings.json 中收集所有设定项的全局提示词，拼接返回。"""
         settings = self.load_settings()
         parts = []
         for s in settings:
             gp = s.get("global_prompt", "").strip()
-            if gp:
+            # 画面风格/人物风格常写成同一段，去重避免同一串画风重复三遍
+            if gp and gp not in parts:
                 parts.append(gp)
         return "，".join(parts) if parts else self.config.get("global", {}).get("prompt_suffix", "")
 
@@ -181,42 +167,29 @@ class Workspace:
 
     # 提示词引用支持的表：表名 -> (加载方法名, 行主键字段, 携带素材的文件字段[按优先级])
     REF_SHEETS = {
-        "角色库": ("load_characters", "name", ["ref_image"]),
-        "场景库": ("load_scenes", "name", ["ref_image"]),
+        "资产库": ("load_assets_lib", "name", ["file_path"]),
         "生图工作台": ("load_workbench", "name", ["result_path", "ref_image"]),
         "素材库": ("load_assets", "name", ["file_path"]),
         "剧本设定": ("load_settings", "name", ["ref_image_path"]),
         "剧本分镜表": ("load_storyboard", "shot_id", ["ref_image", "result_path", "file_path", "video_path"]),
         # 以下表不携带可传递给生成 API 的素材，仅登记引用会报错提示
-        "角色档案": ("load_character_bibles", "name", []),
+        "音色库": ("load_voices", "name", ["file_path"]),
         "剧本表": ("load_episodes", "episode", []),
     }
 
-    @staticmethod
-    def _scene_view_rank(view: str) -> int:
-        """裸名 {场景库：名} 的默认视角优先级：数值越小越优先，母版最后（不直接挂分镜）。"""
-        view = view or ""
-        if view.startswith("主场景"):
-            return 0
-        if view.startswith("全景基准图"):
-            return 1
-        if view.startswith("正视图"):
-            return 2
-        if view.startswith("母版"):
-            return 9
-        return 5
-
     IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
     VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
+    AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac"}
 
     def expand_prompt(self, template: str, *,
                       skip_self: tuple[str, str] | None = None,
+                      audio_out: list[str] | None = None,
                       ) -> tuple[str, list[str], list[str], list[str], list[str]]:
         """把 prompt 模板中的 {表名:行标识} 标记移除，同时收集引用到的参考素材。
 
         通用语法（中英文冒号均可，推荐中文冒号）：
-            {角色库：林砚}          → 收集角色的形象图（等价 {角色库:林砚}）
-            {场景库：写字楼大堂}     → 收集场景的参考图
+            {资产库：林砚}          → 收集角色的形象图（等价 {资产库:林砚}）
+            {资产库：写字楼大堂}     → 收集场景的参考图
             {生图工作台：任务名}     → 收集工作台任务的结果图
             {素材库：素材ID}        → 按素材文件类型收集图片/视频
             {剧本设定：画面风格}     → 收集设定项的全局参考图
@@ -239,22 +212,7 @@ class Workspace:
             if sheet not in sheet_cache:
                 loader_name, key_field, _ = self.REF_SHEETS[sheet]
                 rows = getattr(self, loader_name)()
-                if sheet == "场景库":
-                    mapping = {}
-                    default_by_name: dict[str, tuple[int, dict]] = {}
-                    for r in rows:
-                        scene_name = str(r.get("name", ""))
-                        view = r.get("view_angle", "全景基准图（默认）")
-                        mapping[f"{scene_name}·{view}"] = r
-                        rank = self._scene_view_rank(view)
-                        if scene_name not in default_by_name or rank < default_by_name[scene_name][0]:
-                            default_by_name[scene_name] = (rank, r)
-                    for scene_name, (_, r) in default_by_name.items():
-                        if scene_name not in mapping:
-                            mapping[scene_name] = r
-                    sheet_cache[sheet] = mapping
-                else:
-                    sheet_cache[sheet] = {str(r.get(key_field, "")): r for r in rows}
+                sheet_cache[sheet] = {str(r.get(key_field, "")): r for r in rows}
             return sheet_cache[sheet]
 
         def _collect_file(kind, name, path_val):
@@ -272,6 +230,9 @@ class Workspace:
             elif ext in self.VIDEO_EXTS:
                 if abs_file not in ref_videos:
                     ref_videos.append(abs_file)
+            elif ext in self.AUDIO_EXTS:
+                if audio_out is not None and abs_file not in audio_out:
+                    audio_out.append(abs_file)
             else:
                 errors.append(f"{{{kind}：{name}}} 不支持的素材类型: {path_val}")
 
@@ -285,23 +246,20 @@ class Workspace:
                     f"不支持的引用表「{kind}」；可用表：{ '、'.join(self.REF_SHEETS.keys()) }"
                 )
                 return ""
-            if kind == "角色库" and name not in characters_found:
-                characters_found.append(name)
-            if kind == "场景库":
-                base_name = name.split("·")[0] if "·" in name else name
-                if base_name not in scenes_found:
-                    scenes_found.append(base_name)
             _, _, file_fields = self.REF_SHEETS[kind]
             row = _row_map(kind).get(name)
-            if row is None and kind == "场景库" and "·" not in name:
-                row = _row_map(kind).get(f"{name}·正视图（默认）")
+            if row:
+                if row.get("kind") == "角色" and name not in characters_found:
+                    characters_found.append(name)
+                if row.get("kind") == "场景" and name not in scenes_found:
+                    scenes_found.append(name)
             if row is None:
                 errors.append(f"{kind}中找不到「{name}」")
                 return ""
             if not file_fields:
                 errors.append(
                     f"{{{kind}：{name}}} 该表不携带可传递的素材文件；"
-                    f"引用角色请用 {{角色库：名字}}，引用场景请用 {{场景库：名字}}"
+                    f"引用资产请用 {{资产库：名字}}"
                 )
                 return ""
             collected = False
@@ -325,6 +283,12 @@ class Workspace:
 
         # 通用 {sheetName:rowId} / {sheetName：rowId}，中英文冒号均支持
         text = re.sub(r"\{([^{}:：]+)\s*[:：]\s*([^{}]+?)\s*\}", _replace, template)
+        # 资产锁定写成【名：{表：行}】时，标记被移除后会剩下「名：」，收干净
+        text = re.sub(r"：\s*】", "】", text)
+        # 锚点后还有补充内容时，收掉挂在末尾的逗号/顿号：`…硬壳，】` → `…硬壳】`
+        text = re.sub(r"[，、；;]\s*】", "】", text)
+        # 名称版锁定行「【名】：{…}」去掉锚点后会剩一个空冒号，收掉：`【沈幼怡】：` → `【沈幼怡】`
+        text = re.sub(r"(?m)^(【[^】]+】)\s*(?:画面参考\s*[：:])?\s*[：:]\s*$", r"\1", text)
 
         if errors:
             raise ValueError("提示词引用解析失败:\n  " + "\n  ".join(errors))
@@ -420,7 +384,6 @@ class Workspace:
         ws.save_config()
 
         ws.save_json("characters.json", [])
-        ws.save_json("character_bibles.json", [])
         ws.save_json("scenes.json", [])
         ws.save_json("settings.json", [])
         ws.save_json("episodes.json", [])
