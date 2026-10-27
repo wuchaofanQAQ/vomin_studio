@@ -1078,7 +1078,7 @@ def cmd_migrate_schema(args):
             print(f"  2. {tname} 新增字段: {', '.join(f['field_name'] for f in fields)}")
     else:
         print("  2. 新增字段: 无需")
-    print(f"  3. 完整剧本 → 小说内容（并置状态「待转剧本」）: {plan['move_rows']} 行")
+    print(f"  3. 初版剧本 → 小说内容（并置状态「待转剧本」）: {plan['move_rows']} 行")
     print("  4. 本地 workspace.yaml: 将 feishu.tables 的「剧集表」键改为「剧本表」")
     print(f"  5. 补齐缺失标准表: {', '.join(missing_tables) if missing_tables else '无需'}")
 

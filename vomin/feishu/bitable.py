@@ -100,7 +100,7 @@ class FeishuBitable:
             "fields": [
                 {"field_name": "集名", "type": 1},
                 {"field_name": "对应原小说章节", "type": 1},
-                {"field_name": "完整剧本", "type": 1},
+                {"field_name": "初版剧本", "type": 1},
                 {"field_name": "分镜设计稿", "type": 1},
                 {"field_name": "状态", "type": 3, "property": {"options": [
                     {"name": "待转剧本"}, {"name": "待编写"}, {"name": "草稿"},
@@ -576,8 +576,10 @@ class FeishuBitable:
                 "episode": ep_num,
                 "title": _text_val(f.get("集名", "")),
                 "source_chapters": _text_val(f.get("对应原小说章节", "")),
-                "script": _text_val(f.get("完整剧本", "")),
+                "script": _text_val(f.get("初版剧本", "")),
                 "status": _text_val(f.get("状态", "待编写")),
+                "涉及资产": _text_val(f.get("涉及资产", "")),
+                "分镜设计稿": _text_val(f.get("分镜设计稿", "")),
                 "_record_id": rec["record_id"],
             })
         episodes.sort(key=lambda e: e["episode"])
@@ -613,9 +615,14 @@ class FeishuBitable:
                 "集号": ep_key,
                 "集名": ep.get("title", ""),
                 "对应原小说章节": str(ep.get("source_chapters", "") or ""),
-                "完整剧本": ep.get("script", ""),
+                "初版剧本": ep.get("script", ""),
                 "状态": ep.get("status", "待编写"),
             }
+            # 仅在本地有值时推送，避免用空值清掉线上已确认的内容
+            if ep.get("涉及资产"):
+                fields["涉及资产"] = ep["涉及资产"]
+            if ep.get("分镜设计稿"):
+                fields["分镜设计稿"] = ep["分镜设计稿"]
             record_id = ep_to_record.get(ep_key) or ep_to_record.get(str(ep.get("episode")))
             if record_id:
                 self.update_record(table_id, record_id, fields)
@@ -898,7 +905,7 @@ class FeishuBitable:
           "rename": (旧表名, 新表名) | None,
           "table_ids": {表名: table_id},
           "add_fields": {表名: [field_def, ...]},
-          "move_rows": 需要把「完整剧本」挪到「小说内容」的行数,
+          "move_rows": 需要把「初版剧本」挪到「小说内容」的行数,
         }
         """
         h = self._headers()
@@ -927,7 +934,7 @@ class FeishuBitable:
         if tid:
             for rec in self.list_records(tid):
                 f = rec.get("fields", {})
-                if _text_val(f.get("完整剧本")) and not _text_val(f.get("小说内容")):
+                if _text_val(f.get("初版剧本")) and not _text_val(f.get("小说内容")):
                     plan["move_rows"] += 1
         return plan
 
@@ -979,15 +986,15 @@ class FeishuBitable:
             moved = 0
             for rec in self.list_records(tid):
                 f = rec.get("fields", {})
-                old_script = _text_val(f.get("完整剧本"))
+                old_script = _text_val(f.get("初版剧本"))
                 if old_script and not _text_val(f.get("小说内容")):
                     self.update_record(tid, rec["record_id"], {
                         "小说内容": old_script,
-                        "完整剧本": "",
+                        "初版剧本": "",
                         "状态": "待转剧本",
                     })
                     moved += 1
-            print(f"  已迁移 {moved} 行：完整剧本 → 小说内容（状态置「待转剧本」）")
+            print(f"  已迁移 {moved} 行：初版剧本 → 小说内容（状态置「待转剧本」）")
 
 
 def _text_val(v) -> str:

@@ -118,7 +118,7 @@ python cli.py expand <workspace> --shot ep01_p01
 python cli.py migrate-schema <workspace> --dry-run
 
 # ✏️ 需确认：执行迁移（剧集表→剧本表；补 小说章节/小说内容；资产库补 参考场景/作用关联；
-#            旧「完整剧本」内容复制到「小说内容」后清空，状态置「待转剧本」；改写本地 workspace.yaml）
+#            旧「初版剧本」内容复制到「小说内容」后清空，状态置「待转剧本」；改写本地 workspace.yaml）
 python cli.py migrate-schema <workspace>
 ```
 

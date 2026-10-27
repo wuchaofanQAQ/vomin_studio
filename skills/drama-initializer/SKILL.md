@@ -13,7 +13,7 @@ name: drama-initializer
   → ① 剧本设定（剧集圣经）          → 飞书·剧本设定表
 ```
 
-**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-drama` 在 Phase B 每集开头完成，写入飞书·剧本表（小说章节、小说内容、完整剧本）。
+**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-drama` 在 Phase B 每集开头完成，写入飞书·剧本表（小说章节、小说内容、初版剧本）。
 
 产出后下游衔接：资产提取（drama-asset-extraction）、资产生图（drama-asset-generation）、逐集小说转剧本（novel-to-drama）、分镜与提示词（drama-segment-generation）。
 
@@ -62,7 +62,7 @@ name: drama-initializer
 3. 用户提意见 → 只修改对应草案并重新展示，**不写飞书**
 4. 用户明确确认后，harness 才执行写入（见下）
 
-> 剧本表（逐集的小说章节、小说内容、完整剧本）**不在本技能产出范围**，由 `novel-to-drama` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
+> 剧本表（逐集的小说章节、小说内容、初版剧本）**不在本技能产出范围**，由 `novel-to-drama` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
 
 ## Automated Mode (Harness Integration)
 
