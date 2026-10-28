@@ -13,7 +13,7 @@ name: drama-initializer
   → ① 剧本设定（剧集圣经）          → 飞书·剧本设定表
 ```
 
-**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-drama` 在 Phase B 每集开头完成，写入飞书·剧本表（小说章节、小说内容、初版剧本）。
+**不产出剧本表。** 逐集的「小说 → 剧本」转化由 `novel-to-drama` 在 Phase B 每集开头完成，写入飞书·剧本表（集名、对应原小说章节、初版剧本）。
 
 产出后下游衔接：资产提取（drama-asset-extraction）、资产生图（drama-asset-generation）、逐集小说转剧本（novel-to-drama）、分镜与提示词（drama-segment-generation）。
 
@@ -29,8 +29,8 @@ name: drama-initializer
 
 按 `references/script-intake.md` 执行：
 
-- 读取用户上传的小说章节/剧本全文（多格式/多文件），建立结构索引：剧名、章节（集）边界、角色名单、时空设定、画风线索
-- 完整性检查：预计集数（= 章节数，**严格 1 章 = 1 集**）、单集时长、画面比例、画风基调、已上传到第几章——缺项**合并成一次提问**，不逐条轰炸
+- 读取用户上传的小说章节/剧本全文（多格式/多文件），建立结构索引：剧名、章节边界、预计集数、角色名单、时空设定、画风线索
+- 完整性检查：预计集数（按节奏估算；**集与章不绑定**，章节数只是参考）、单集时长、画面比例、画风基调、已上传到第几章——缺项**合并成一次提问**，不逐条轰炸
 - 超长原文按章分段读完，避免遗漏
 
 ### Step 2 — 生成剧本设定（剧集圣经）
@@ -62,7 +62,7 @@ name: drama-initializer
 3. 用户提意见 → 只修改对应草案并重新展示，**不写飞书**
 4. 用户明确确认后，harness 才执行写入（见下）
 
-> 剧本表（逐集的小说章节、小说内容、初版剧本）**不在本技能产出范围**，由 `novel-to-drama` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
+> 剧本表（逐集的集名、对应原小说章节、初版剧本）**不在本技能产出范围**，由 `novel-to-drama` 在 Phase B 逐集产出。若用户上传的是**已写好的成品剧本**（而非小说），由 harness 直接按集写入剧本表的 `script`，同样不经本技能。
 
 ## Automated Mode (Harness Integration)
 
@@ -140,7 +140,7 @@ python cli.py write $WS --table 资产库   --data '<资产库部分>'
 
 - 角色资产图/四视角 → `drama-asset-generation`（吃资产库描述 + 画面风格）
 - 逐集小说转剧本 → `novel-to-drama`（吃剧本设定 + 资产库 + 小说章节）
-- 逐集场景抽取 → `drama-asset-extraction`（吃剧本设定 + 剧本表 script + 当前章小说内容补空间细节）
+- 逐集场景抽取 → `drama-asset-extraction`（吃剧本设定 + 剧本表 script + `小说表` 对应章节补空间细节）
 - 逐集新角色识别与档案产出 → `drama-asset-extraction`
 
 ## References

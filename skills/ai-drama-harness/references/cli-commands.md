@@ -37,9 +37,9 @@ python cli.py read <workspace> --table 角色档案
 python cli.py read <workspace> --table 资产库
 
 # 剧本表/分镜表按集过滤：拆分镜只读 当前集 ± 1 集（共3集），禁止全量读剧本
-# 剧本表默认剔除「小说内容」(novel_text)，避免撑爆上下文；仅需要原文时才加 --with-novel
-python cli.py read <workspace> --table 剧本表 --episode 5 --context 1   # 第4/5/6集（不含小说原文）
-python cli.py read <workspace> --table 剧本表 --episode 5 --with-novel   # 仅第5集，连同小说原文
+# 剧本表不含小说原文；原文在「小说表」，按 对应原小说章节 用 --chapter 精确取
+python cli.py read <workspace> --table 剧本表 --episode 5 --context 1   # 第4/5/6集
+python cli.py read <workspace> --table 小说表 --chapter 1,2             # 只读第1、2章原文
 python cli.py read <workspace> --table 剧本分镜表 --episode 5           # 仅第5集已有分镜
 python cli.py read <workspace> --table 生图工作台
 python cli.py read <workspace> --table 素材库
@@ -117,8 +117,10 @@ python cli.py expand <workspace> --shot ep01_p01
 # 🔍 只读：打印迁移计划（表改名 / 新增字段 / 受影响行数），不做任何写入
 python cli.py migrate-schema <workspace> --dry-run
 
-# ✏️ 需确认：执行迁移（剧集表→剧本表；补 小说章节/小说内容；资产库补 参考场景/作用关联；
-#            旧「初版剧本」内容复制到「小说内容」后清空，状态置「待转剧本」；改写本地 workspace.yaml）
+# ✏️ 需确认：执行存量旧表迁移（剧集表→剧本表；补当前字段；
+#            旧表若仍有「小说内容」字段，旧「初版剧本」会复制到该字段后清空，状态置「待转剧本」；
+#            改写本地 workspace.yaml）
+# 注意：当前新表没有「小说内容」字段，新项目不要依赖这一步。
 python cli.py migrate-schema <workspace>
 ```
 

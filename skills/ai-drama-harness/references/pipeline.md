@@ -8,11 +8,11 @@
 |---|---|---|---|---|---|
 | ① | drama-initializer | 用户上传小说章节/剧本 | 剧本设定 + 资产库/角色档案（**不含剧本表**） | — | `init`（模式B）+ `write` 剧本设定/资产库/角色档案 |
 | ② | drama-asset-generation | 资产库描述+画风 | 角色四视角提示词 + 出图（可选，主角用） | `read --table 资产库` | `write --table 资产库`（gen_prompt）+ `generate` |
-| ③ | novel-to-drama（逐集 B0a） | 本章小说 + 剧本设定 + 资产库 + 前一集 script | 剧本表一整行：小说章节 / 小说内容（原文）/ 初版剧本（转化后）/ 集名 / 状态 | `read --table 剧本设定/资产库`、`read --table 剧本表 --episode N --context 1` | `write --table 剧本表` |
-| ④ | drama-asset-extraction（逐集 B0b） | 当前集±1集 script + 当前集小说原文（`--with-novel`）+ 剧本设定 + 资产库 | 角色/场景/道具资产：一句 ≤50 字描述 + 复用/待补清单 | `read --table 剧本表 --episode N --context 1` + `--episode N --with-novel` + 三张资产表 | `write --table 资产库` + `generate`（懒加载） |
+| ③ | novel-to-drama（逐集 B0a） | 阅读窗口（可多章）+ 剧本设定 + 资产库 + 前一集 script | 剧本表一行：集号 / 集名 / 对应原小说章节 / 初版剧本（含原文区间） / 状态 | `read --table 剧本设定/资产库`、`read --table 剧本表 --episode N --context 1`、`read --table 小说表 --chapter <阅读窗口>` | `write --table 剧本表` |
+| ④ | drama-asset-extraction（逐集 B0b） | 当前集±1集 script + 当前集原文（`小说表 --chapter`）+ 剧本设定 + 资产库 | 角色/场景/道具资产：一句 ≤50 字描述 + 复用/待补清单 | `read --table 剧本表 --episode N --context 1` + `read --table 小说表 --chapter <对应原小说章节>` + 三张资产表 | `write --table 资产库` + `generate`（懒加载） |
 | ⑤ | drama-segment-generation（逐集 B1） | 当前集±1集 script + 角色 + 场景（含 description 锚点）+ 道具 | 分镜 + 依赖清单 + 视频提示词；**懒加载：只为本集用到的资产生图** | `read --table 剧本表 --episode N --context 1` + 资产库/角色档案/资产库/资产库/剧本设定 | `write --table 剧本分镜表` + `generate` |
 
-> `read --table 剧本表` 默认**剔除小说内容**（`novel_text`）；只有 ④ 需要当前集原文时才加 `--with-novel`，其余节点一律不带。
+> 剧本表不含小说原文；原文在 `小说表`，用 `read --table 小说表 --chapter <对应原小说章节>` 精确取，**禁止通读全本**。
 
 ## 二、节点间依赖
 
@@ -23,12 +23,12 @@
                  ├→ ② drama-asset-generation（主角四视角设定图，可选）→ generate ──(确认点2·飞书)
                  │
                  └→ 逐集滚动（Phase B）：
-                       ③ novel-to-drama（B0a 小说转剧本，1 章 = 1 集）
+                       ③ novel-to-drama（B0a 小说转剧本；集与章不绑定）
                          读 剧本设定 + 资产库 + 前一集 script
                          → 结构化剧本（场头：场号/内外景/地点/时间/出场人物/关键动作）
                          → [轻量确认] → write 剧本表
                        ④ drama-asset-extraction（B0b 资产提取）
-                         读 剧本表 N±1 script + 当前集小说原文 + 剧本设定 + 四张资产表
+                         读 剧本表 N±1 script + 本集所用章节原文 + 剧本设定 + 四张资产表
                          → 角色（描述+≤50字提示词+档案）/ 场景（描述+锚点+提示词）/ 道具
                          → 逐集增量：同名同图复用，只补新资产
                          → [轻量确认] → write 资产库/角色档案/资产库/资产库（只写文字，不出图）
@@ -42,8 +42,8 @@
 
 **关键设计**：
 
-- 小说转剧本是独立一层：`小说内容` 存原文（逐字，不改，下游不读），`初版剧本` 存转化后的剧本，是资产提取与分镜的**唯一剧本来源**。
-- 用户上传**成品剧本**时跳过 ③，直接写入 `初版剧本`，`小说章节`/`小说内容` 留空。
+- 小说转剧本是独立一层：小说章节逐字存在 `小说表`（`章节` / `标题` / `内容`，下游按 `对应原小说章节` 精确取）；`初版剧本` 存转化后的剧本，是资产提取与分镜的**唯一剧本来源**。
+- 用户上传**成品剧本**时跳过 ③，直接写入 `初版剧本`，`对应原小说章节` 留空。
 - 角色、场景、道具由 ④ 一个技能统一提取，**每个资产一行一张图**，只产一句 ≤50 字描述。
 - 拆分镜与视频提示词由 `drama-segment-generation` 一个技能完成。
 - **懒加载**：④ 只写文字资产，不出图；⑤ 产出 `dependencies` 后，才为本集用到的资产生成。
@@ -67,18 +67,22 @@ Phase A 完成后进入逐集 Phase B，剧本、资产提取和出图统一在 
 ```
 对每一集 N：
   B0a: ③ novel-to-drama（小说转剧本）
-    read 剧本设定 + 资产库 + 剧本表 --episode N --context 1（取前一集承接，不含小说原文）
-    → 转化为结构化剧本，提取集名
-    → [轻量确认] → write 剧本表（小说章节/小说内容/初版剧本/…，status=草稿）
+    read 剧本设定 + 资产库 + 剧本表 --episode N --context 1（取前一集承接，剧本表不含原文）
+    read 小说表 --chapter <阅读窗口，默认往后 2~3 章；不够再扩>
+    → 在窗口里定本集原文区间（起始句 → 结束句），再回填章号
+    → 转化为剧本，抬头写 原文区间；提取集名
+    → [轻量确认] → write 剧本表（集名/对应原小说章节/初版剧本/…，status=草稿）
+    # 重做第 N 集：旧 对应原小说章节 不是范围；按新要求重读窗口，写完更新 原文区间 / 对应原小说章节
   B0b: ④ drama-asset-extraction（资产提取）
-    read 剧本表 --episode N --context 1 + --episode N --with-novel
+    read 剧本表 --episode N --context 1
+    read 小说表 --chapter <对应原小说章节>
     read 剧本设定 + 资产库 + 资产库 + 资产库
     → 角色/场景/道具清单：一句描述 + 复用判定
     → 新角色补 6 模块档案
     → check_assets.py 校验（0 错）
     → [轻量确认] → write 资产库/角色档案/资产库/资产库（只写文字，不出图）
   B1: ⑤ drama-segment-generation（分镜+依赖+提示词）
-    read 剧本表 --episode N --context 1   # 只读 N-1、N、N+1 三集，禁止全量读，禁止 --with-novel
+    read 剧本表 --episode N --context 1   # 只读 N-1、N、N+1 三集，禁止全量读；禁止通读小说表（原文按 --chapter 精确取）
     read 剧本设定 + 资产库 + 角色档案 + 资产库 + 资产库
     → 分段（按场景 description 的锚点/轴线设计站位与调度）+ 依赖场景/角色/道具 + 提示词草案
     → 与用户沟通修改（不写入）
